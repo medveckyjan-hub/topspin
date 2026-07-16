@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# SPA – všetky cesty smeruj na index.html (kvôli /t/:slug a /t/:slug/admin)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
