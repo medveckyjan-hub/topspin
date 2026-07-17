@@ -328,10 +328,9 @@ function Knockout({ state, update, label, openMatch, setNotice }: { state: Tourn
     </section>)}</div>;
   };
   const renderPlayoff = (c: Competition, em: Map<string, GenericEntry>) => {
-    const zero = c.groups.filter(g => g.qualifiers === 0);
-    if (!zero.length) return null;
-    return <>{zero.map(g => <div className="playoff-block" key={g.id}>
-      <div className="pb-head"><h3>Play-off — {g.name} (1‑2 o 1., 3‑4 o 3.)</h3>
+    if (!c.groups.length) return null;
+    return <><h3 className="bracket-title">Play-off skupín (1‑2 o 1., 3‑4 o 3.)</h3>{c.groups.map(g => <div className="playoff-block" key={g.id}>
+      <div className="pb-head"><h3>{g.name}</h3>
         <button className="button" onClick={() => update(c.id, x => ({ ...x, groups: x.groups.map(y => y.id === g.id ? { ...y, playoff: createGroupPlayoff(y, em) } : y) }))}>{g.playoff ? 'Obnoviť podľa poradia' : 'Vytvoriť play-off'}</button></div>
       {g.playoff && <div className="pb-matches">
         <div className="pb-match"><span className="pb-label">O 1. miesto</span><MatchRow m={g.playoff.final} label={label} onClick={() => openMatch({ kind: 'playoff', compId: c.id, groupId: g.id, slot: 'final' })} /></div>
@@ -343,15 +342,15 @@ function Knockout({ state, update, label, openMatch, setNotice }: { state: Tourn
     const em = entryMap(c, state.players, state.pairs, state.teams);
     const hasQual = c.groups.some(g => g.qualifiers > 0);
     const groupsDone = c.groups.length > 0 && c.groups.every(g => g.matches.every(m => m.winnerId));
-    return <section className="card form-card" key={c.id}><div className="card-header"><h2>{c.name}</h2>
+    return <section className="card form-card" key={c.id}><div className="card-header"><h2>{c.name}</h2><div className="row-actions">
       {!c.ko.main.length && hasQual && <button className="button primary" onClick={() => { if (!c.groups.length) { setNotice('Najprv vytvor a dohraj skupiny.'); return; } if (!groupsDone && !confirm('Skupiny nie sú dohraté. Vytvoriť pavúk aj tak?')) return; update(c.id, x => ({ ...x, ko: createKnockout(x, em) })); }}><Wand2 size={16} />Vytvoriť pavúk z postupujúcich</button>}
       {c.ko.main.length > 0 && <button className="button" onClick={() => update(c.id, x => ({ ...x, ko: createKnockout(x, em) }))}>Prežrebovať</button>}
-    </div>
-      {c.ko.main.length > 0 && <><h3 className="bracket-title">Hlavná súťaž</h3>{renderBracket(c, 'main')}</>}
+      {c.ko.main.length > 0 && <button className="button" onClick={() => { if (confirm('Zrušiť pavúk? Zapísané výsledky pavúka sa stratia.')) update(c.id, x => ({ ...x, ko: { main: [], consolation: [] } })); }}>Zrušiť pavúk</button>}
+    </div></div>
+      {c.ko.main.length > 0 && <><h3 className="bracket-title">Hlavný pavúk</h3>{renderBracket(c, 'main')}</>}
       {c.ko.consolation.length > 0 && <><h3 className="bracket-title">Útecha</h3>{renderBracket(c, 'consolation')}</>}
       {renderPlayoff(c, em)}
       {!c.groups.length && <p className="muted">Najprv vytvor skupiny v sekcii Súťaže.</p>}
-      {!!c.groups.length && !c.ko.main.length && hasQual && <p className="muted">Pavúk sa vytvorí z aktuálnych postupových miest skupín (a útecha z nepostupujúcich, ak je zapnutá).</p>}
     </section>;
   })}</div>;
 }
