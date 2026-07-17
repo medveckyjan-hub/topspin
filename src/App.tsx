@@ -4,9 +4,10 @@ import * as XLSX from 'xlsx';
 import { Sidebar } from './components/Sidebar';
 import { EntryCard } from './components/EntryCard';
 import {
-  TEAM_SYSTEMS, applySubstitution, autoSchedule, buildTeamTie, canMovePlayer, createGroups, createKnockout,
+  TEAM_SYSTEMS, applySubstitution, autoSchedule, buildTeamTie, canMovePlayer, createGroupPlayoff, createGroups, createKnockout,
   advanceKnockout as advance, entryMap, groupRounds, movePlayer, normalizeMatch, resizeSets, scoreTeamTie, scoreText, setsText, setsToWin, setGroupBestOf, setRoundBestOf, standings, uid, validateMatch,
 } from './lib/multisport';
+import { cloudReady, searchPlayers, upsertPlayer, type DbPlayer } from './lib/supabase';
 import type {
   Competition, CompetitionType, Knockout, Match, Player, TeamSystemId, TeamTie, TournamentGroup, TournamentState, View,
 } from './types';
@@ -21,7 +22,8 @@ export const emptyTournament = (name: string): TournamentState => ({
 type Detail =
   | { kind: 'group'; compId: string; groupId: string; matchId: string }
   | { kind: 'ko'; compId: string; side: 'main' | 'consolation'; roundIdx: number; matchId: string }
-  | { kind: 'team'; compId: string; tieId: string; rubberId: string };
+  | { kind: 'team'; compId: string; tieId: string; rubberId: string }
+  | { kind: 'playoff'; compId: string; groupId: string; slot: 'final' | 'third' };
 
 export function TournamentEditor({ initial, onSave, banner, onDelete }: { initial: TournamentState; onSave: (s: TournamentState) => void; banner?: React.ReactNode; onDelete?: () => void }) {
   const [state, setState] = useState<TournamentState>(initial);
@@ -69,9 +71,12 @@ export function TournamentEditor({ initial, onSave, banner, onDelete }: { initia
     setState(s => ({ ...s, teams: [...s.teams, { id: uid(), name, club, playerIds: ids }] }));
   };
   const addCompetition = (name: string, type: CompetitionType, systemId?: TeamSystemId) =>
-    setState(s => ({ ...s, competitions: [...s.competitions, { id: uid(), name, type, bestOf: 5, preferredSize: 4, qualifiersPerGroup: 2, thirdPlace: true, consolation: false, entryIds: [], groups: [], ko: { main: [], consolation: [] }, teamSystemId: systemId, teamTies: [] }] }));
+    setState(s => ({ ...s, competitions: [...s.competitions, { id: uid(), name, type, bestOf: 5, preferredSize: 4, qualifiersPerGroup: 2, thirdPlace: true, consolation: false, groupPlayoff: false, entryIds: [], groups: [], ko: { main: [], consolation: [] }, teamSystemId: systemId, teamTies: [] }] }));
   const updateComp = (id: string, fn: (c: Competition) => Competition) => setState(s => ({ ...s, competitions: s.competitions.map(c => c.id === id ? fn(c) : c) }));
   const removeComp = (id: string) => setState(s => ({ ...s, competitions: s.competitions.filter(c => c.id !== id) }));
+
+  const updatePlayoffMatch = (compId: string, groupId: string, slot: 'final' | 'third', m: Match) =>
+    updateComp(compId, c => ({ ...c, groups: c.groups.map(g => g.id === groupId && g.playoff ? { ...g, playoff: { ...g.playoff, [slot]: m } } : g) }));
 
   const updateGroupMatch = (compId: string, groupId: string, matchId: string, m: Match) =>
     updateComp(compId, c => ({ ...c, groups: c.groups.map(g => g.id === groupId ? { ...g, matches: g.matches.map(x => x.id === matchId ? m : x) } : g) }));
@@ -119,6 +124,7 @@ export function TournamentEditor({ initial, onSave, banner, onDelete }: { initia
         onChange={(m, bestOf) => {
           if (detail.kind === 'group') updateGroupMatch(detail.compId, detail.groupId, detail.matchId, normalizeMatch(m, bestOf));
           else if (detail.kind === 'ko') updateKoMatch(detail.compId, detail.side, detail.roundIdx, detail.matchId, normalizeMatch(m, bestOf));
+          else if (detail.kind === 'playoff') updatePlayoffMatch(detail.compId, detail.groupId, detail.slot, normalizeMatch(m, bestOf));
           else updateTeamRubber(detail.compId, detail.tieId, detail.rubberId, normalizeMatch(m, bestOf), bestOf);
         }} />}
     </div>
@@ -165,23 +171,39 @@ function Avatar({ photo, name, size = 40 }: { photo?: string; name: string; size
 
 function Players({ state, setState, add, importPlayers }: { state: TournamentState; setState: React.Dispatch<React.SetStateAction<TournamentState>>; add: (n: string, c: string, r: number, g: Player['gender']) => void; importPlayers: (f?: File) => void }) {
   const [f, setF] = useState({ n: '', c: '', r: '', g: 'M' as Player['gender'] });
-  const setPhoto = async (id: string, file?: File) => { if (!file) return; const photo = await fileToThumb(file); setState(s => ({ ...s, players: s.players.map(p => p.id === id ? { ...p, photo } : p) })); };
+  const [q, setQ] = useState('');
+  const [hits, setHits] = useState<DbPlayer[]>([]);
+  const setPhoto = async (id: string, file?: File) => { if (!file) return; const photo = await fileToThumb(file); setState(s => ({ ...s, players: s.players.map(p => p.id === id ? { ...p, photo } : p) })); const pl = state.players.find(p => p.id === id); if (cloudReady && pl) upsertPlayer({ name: pl.name, club: pl.club, rating: pl.rating, gender: pl.gender, photo }).catch(() => {}); };
+  const updatePlayer = (id: string, patch: Partial<Player>) => setState(s => ({ ...s, players: s.players.map(p => p.id === id ? { ...p, ...patch } : p) }));
+  const syncToDb = (p: Player) => { if (cloudReady && p.name.trim()) upsertPlayer({ name: p.name, club: p.club, rating: p.rating, gender: p.gender, photo: p.photo }).catch(() => {}); };
+  const addFull = (p: Omit<Player, 'id'>) => { const exists = state.players.some(x => x.name.trim().toLowerCase() === p.name.trim().toLowerCase()); if (exists) return; setState(s => ({ ...s, players: [...s.players, { id: uid(), ...p }] })); };
+  const doSearch = async (val: string) => { setQ(val); if (!cloudReady || val.trim().length < 2) { setHits([]); return; } try { setHits(await searchPlayers(val.trim())); } catch { setHits([]); } };
+  const manualAdd = () => { if (!f.n.trim()) return; const p = { name: f.n.trim(), club: f.c.trim(), rating: Number(f.r) || 0, gender: f.g }; addFull(p); syncToDb({ id: '', ...p }); setF({ n: '', c: '', r: '', g: 'M' }); };
+
   return <div className="page-grid">
     <section className="card form-card"><h2>Pridať hráča</h2>
+      {cloudReady && <div className="db-search">
+        <input placeholder="Hľadať v databáze (meno)…" value={q} onChange={e => doSearch(e.target.value)} />
+        {hits.length > 0 && <div className="db-hits">{hits.map((h, i) => <button key={i} className="db-hit" onClick={() => { addFull({ name: h.name, club: h.club, rating: h.rating, gender: (h.gender === 'F' ? 'F' : h.gender === 'X' ? 'X' : 'M'), photo: h.photo }); setQ(''); setHits([]); }}>
+          <Avatar photo={h.photo} name={h.name} size={28} /><span><strong>{h.name}</strong>{h.club ? ` · ${h.club}` : ''}{h.rating ? ` · ${h.rating}` : ''}</span></button>)}</div>}
+      </div>}
       <div className="player-form">
-        <input placeholder="Meno" value={f.n} onChange={e => setF({ ...f, n: e.target.value })} />
+        <input placeholder="Meno" value={f.n} onChange={e => setF({ ...f, n: e.target.value })} onKeyDown={e => e.key === 'Enter' && manualAdd()} />
         <input placeholder="Klub" value={f.c} onChange={e => setF({ ...f, c: e.target.value })} />
         <input type="number" placeholder="Rating" value={f.r} onChange={e => setF({ ...f, r: e.target.value })} />
         <select value={f.g} onChange={e => setF({ ...f, g: e.target.value as Player['gender'] })}><option value="M">Muž</option><option value="F">Žena</option><option value="X">Iné</option></select>
-        <button className="button primary" onClick={() => { if (f.n.trim()) { add(f.n.trim(), f.c.trim(), Number(f.r) || 0, f.g); setF({ n: '', c: '', r: '', g: 'M' }); } }}><Plus size={17} />Pridať</button>
+        <button className="button primary" onClick={manualAdd}><Plus size={17} />Pridať</button>
       </div>
       <label className="upload"><FileSpreadsheet /><div><strong>Import XLSX / CSV</strong><span>Stĺpce: meno, klub, rating, pohlavie</span></div><input type="file" accept=".xlsx,.xls,.csv" onChange={e => importPlayers(e.target.files?.[0])} /></label>
     </section>
     <section className="card roster-card"><div className="card-header"><h2>Hráči ({state.players.length})</h2><button className="text-danger" onClick={() => setState(s => ({ ...s, players: [] }))}><Trash2 size={16} />Vymazať</button></div>
       <div className="table-scroll"><table><thead><tr><th>#</th><th>Foto</th><th>Meno</th><th>Klub</th><th>Poh.</th><th>Rating</th><th /></tr></thead><tbody>
-        {[...state.players].sort((a, b) => b.rating - a.rating).map((p, i) => <tr key={p.id}><td>{i + 1}</td>
-          <td><label className="avatar-upload" title="Nahrať / zmeniť fotku"><Avatar photo={p.photo} name={p.name} /><input type="file" accept="image/*" onChange={e => setPhoto(p.id, e.target.files?.[0])} />{p.photo && <button className="avatar-x" onClick={ev => { ev.preventDefault(); setState(s => ({ ...s, players: s.players.map(x => x.id === p.id ? { ...x, photo: undefined } : x) })); }}>×</button>}</label></td>
-          <td><strong>{p.name}</strong></td><td>{p.club || '—'}</td><td>{p.gender}</td><td>{p.rating || '—'}</td>
+        {state.players.map((p, i) => <tr key={p.id}><td>{i + 1}</td>
+          <td><label className="avatar-upload" title="Nahrať / zmeniť fotku"><Avatar photo={p.photo} name={p.name} /><input type="file" accept="image/*" onChange={e => setPhoto(p.id, e.target.files?.[0])} />{p.photo && <button className="avatar-x" onClick={ev => { ev.preventDefault(); updatePlayer(p.id, { photo: undefined }); }}>×</button>}</label></td>
+          <td><input className="cell-input" value={p.name} onChange={e => updatePlayer(p.id, { name: e.target.value })} onBlur={() => syncToDb(p)} /></td>
+          <td><input className="cell-input" value={p.club} onChange={e => updatePlayer(p.id, { club: e.target.value })} onBlur={() => syncToDb(p)} /></td>
+          <td><select className="cell-input" value={p.gender} onChange={e => updatePlayer(p.id, { gender: e.target.value as Player['gender'] })}><option value="M">M</option><option value="F">Ž</option><option value="X">I</option></select></td>
+          <td><input className="cell-input cell-num" type="number" value={p.rating} onChange={e => updatePlayer(p.id, { rating: Number(e.target.value) || 0 })} onBlur={() => syncToDb(p)} /></td>
           <td><button className="icon-button danger" onClick={() => setState(s => ({ ...s, players: s.players.filter(x => x.id !== p.id) }))}><Trash2 size={16} /></button></td></tr>)}
       </tbody></table></div>
     </section>
@@ -232,7 +254,8 @@ function Competitions({ state, add, update, remove, setNotice }: { state: Tourna
           {c.type !== 'teams' && <><label>Veľkosť skupiny<select value={c.preferredSize} onChange={e => update(c.id, x => ({ ...x, preferredSize: Number(e.target.value) }))}>{Array.from({ length: 10 }, (_, i) => i + 3).map(x => <option key={x}>{x}</option>)}</select></label>
             <label>Postupujúci<input type="number" min={1} max={8} value={c.qualifiersPerGroup} onChange={e => update(c.id, x => ({ ...x, qualifiersPerGroup: Number(e.target.value) || 1 }))} /></label>
             <label className="check"><input type="checkbox" checked={c.thirdPlace} onChange={e => update(c.id, x => ({ ...x, thirdPlace: e.target.checked }))} /> Zápas o 3. miesto</label>
-            <label className="check"><input type="checkbox" checked={c.consolation} onChange={e => update(c.id, x => ({ ...x, consolation: e.target.checked }))} /> Útecha (nepostupujúci)</label></>}
+            <label className="check"><input type="checkbox" checked={c.consolation} onChange={e => update(c.id, x => ({ ...x, consolation: e.target.checked }))} /> Útecha (nepostupujúci)</label>
+            <label className="check"><input type="checkbox" checked={c.groupPlayoff} onChange={e => update(c.id, x => ({ ...x, groupPlayoff: e.target.checked }))} /> Play-off skupiny (1‑2 o 1., 3‑4 o 3.)</label></>}
         </div>
         <h3>Účastníci ({c.entryIds.length})</h3>
         <div className="check-list compact-list">{available.map(e => <label key={e.id}><input type="checkbox" checked={c.entryIds.includes(e.id)} onChange={ev => update(c.id, x => ({ ...x, entryIds: ev.target.checked ? [...x.entryIds, e.id] : x.entryIds.filter(i => i !== e.id) }))} />{e.name}</label>)}</div>
@@ -267,12 +290,21 @@ function Results({ state, update, label, openMatch, openCard }: { state: Tournam
     const em = entryMap(c, state.players, state.pairs, state.teams);
     return <section className="card match-card" key={c.id}><h2>{c.name}</h2>{c.groups.map(g => {
       const st = standings(g, em); const done = g.matches.filter(m => m.winnerId).length;
-      return <div className="match-layout" key={g.id}>
+      return <div className="group-block" key={g.id}>
+        <div className="match-layout">
         <div><div className="group-mini-head"><h3>{g.name} <span className="pill">{done}/{g.matches.length}</span></h3><BestOf value={g.bestOf} onChange={v => update(c.id, x => ({ ...x, groups: x.groups.map(y => y.id === g.id ? setGroupBestOf(y, v) : y) }))} /></div>
           {g.matches.map(m => <MatchRow key={m.id} m={m} label={label} onClick={() => openMatch({ kind: 'group', compId: c.id, groupId: g.id, matchId: m.id })} />)}</div>
         <div><h3>Tabuľka</h3><div className="table-scroll"><table><thead><tr><th>#</th><th>Účastník</th><th>Z</th><th>V</th><th>P</th><th>B</th><th>Sety</th><th>Lopt.</th></tr></thead><tbody>
           {st.map(r => <tr key={r.entry.id} className={r.qualified ? 'qualified-row' : ''}><td>{r.position}</td><td><strong className="clickable-name" onClick={() => openCard(c.id, r.entry.id, r.entry.name)}>{r.entry.name}</strong>{r.tieNote ? <small className="tie"> · {r.tieNote}</small> : ''}</td><td>{r.played}</td><td>{r.wins}</td><td>{r.losses}</td><td><b>{r.matchPoints}</b></td><td>{r.setsFor}:{r.setsAgainst}</td><td>{r.pointsFor}:{r.pointsAgainst}</td></tr>)}
         </tbody></table></div></div>
+        </div>
+        {c.groupPlayoff && <div className="playoff-block">
+          <div className="pb-head"><h3>Play-off skupiny {g.name}</h3><button className="button" onClick={() => update(c.id, x => ({ ...x, groups: x.groups.map(y => y.id === g.id ? { ...y, playoff: createGroupPlayoff(y, em) } : y) }))}>{g.playoff ? 'Obnoviť podľa poradia' : 'Vytvoriť play-off'}</button></div>
+          {g.playoff && <div className="pb-matches">
+            <div className="pb-match"><span className="pb-label">O 1. miesto</span><MatchRow m={g.playoff.final} label={label} onClick={() => openMatch({ kind: 'playoff', compId: c.id, groupId: g.id, slot: 'final' })} /></div>
+            {g.playoff.third && <div className="pb-match"><span className="pb-label">O 3. miesto</span><MatchRow m={g.playoff.third} label={label} onClick={() => openMatch({ kind: 'playoff', compId: c.id, groupId: g.id, slot: 'third' })} /></div>}
+          </div>}
+        </div>}
       </div>;
     })}</section>;
   })}</div>;
@@ -385,6 +417,7 @@ function MatchModal({ state, detail, label, clubOf, onClose, onChange }: {
   let m: Match | undefined, levelBest = c.bestOf, ctxTitle = c.name, ctxSub = '';
   if (detail.kind === 'group') { const g = c.groups.find(x => x.id === detail.groupId); m = g?.matches.find(x => x.id === detail.matchId); levelBest = g?.bestOf ?? c.bestOf; ctxSub = g?.name ?? ''; }
   else if (detail.kind === 'ko') { const r = c.ko[detail.side][detail.roundIdx]; m = r?.matches.find(x => x.id === detail.matchId); levelBest = r?.bestOf ?? c.bestOf; ctxSub = `${detail.side === 'consolation' ? 'Útecha · ' : ''}${r?.name ?? ''}`; }
+  else if (detail.kind === 'playoff') { const g = c.groups.find(x => x.id === detail.groupId); m = detail.slot === 'final' ? g?.playoff?.final : g?.playoff?.third ?? undefined; levelBest = g?.bestOf ?? c.bestOf; ctxSub = `${g?.name ?? ''} · play-off ${detail.slot === 'final' ? 'o 1. miesto' : 'o 3. miesto'}`; }
   else { const t = c.teamTies.find(x => x.id === detail.tieId); const r = t?.rubbers.find(x => x.id === detail.rubberId); m = r?.match; ctxSub = r ? `${r.order}. ${r.label}` : ''; }
   if (!m) return null;
   const match = m;

@@ -60,6 +60,10 @@ export function PublicView() {
             {standings(g, em).map(r => <tr key={r.entry.id} className={r.qualified ? 'qualified-row' : ''}><td>{r.position}</td><td><strong className="clickable-name" onClick={() => setCard({ comp: c, entryId: r.entry.id, name: r.entry.name })}>{r.entry.name}</strong></td><td>{r.wins}</td><td>{r.losses}</td><td><b>{r.matchPoints}</b></td><td>{r.setsFor}:{r.setsAgainst}</td><td>{r.pointsFor}:{r.pointsAgainst}</td></tr>)}
           </tbody></table></div>
           <div className="pub-matches">{g.matches.filter(m => m.winnerId).map(m => <PubMatch key={m.id} m={m} label={label} />)}</div>
+          {g.playoff && <div className="pub-playoff"><h4>Play-off skupiny</h4>
+            <div className="pub-matches"><div className="pub-po-row"><span className="pb-label">O 1. miesto</span><PubMatch m={g.playoff.final} label={label} /></div>
+            {g.playoff.third && <div className="pub-po-row"><span className="pb-label">O 3. miesto</span><PubMatch m={g.playoff.third} label={label} /></div>}</div>
+          </div>}
         </div>)}
         {c.groups.length > 0 && <details className="pub-rounds"><summary>Rozpis po kolách</summary>
           {groupRounds(c).map(r => <div className="round-block" key={r.round}><h4>{r.round}. kolo</h4>

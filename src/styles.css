@@ -178,3 +178,24 @@ a.brand:hover{opacity:.85}
 .pub-rounds summary{cursor:pointer;font-weight:800;color:#e62834}
 .pub-rounds[open] summary{margin-bottom:10px}
 @media(max-width:560px){.round-match{grid-template-columns:1fr;gap:3px}.rm-meta,.rm-group{text-align:left;justify-self:start}}
+/* play-off skupiny + databáza + editovateľní hráči */
+.db-search{position:relative;margin-bottom:12px}
+.db-search>input{width:100%;border:1px solid #d6dde5;border-radius:10px;padding:11px 12px;background:#fbfcfd}
+.db-hits{position:absolute;left:0;right:0;top:100%;z-index:20;background:#fff;border:1px solid #e4e9ee;border-radius:12px;box-shadow:0 12px 30px #0002;margin-top:4px;max-height:260px;overflow:auto}
+.db-hit{display:flex;align-items:center;gap:10px;width:100%;border:0;background:#fff;padding:9px 12px;cursor:pointer;text-align:left;border-bottom:1px solid #f0f2f4}
+.db-hit:hover{background:#f6f8fa}
+.db-hit span{font-size:.86rem;color:#2a3547}
+.cell-input{width:100%;border:1px solid transparent;border-radius:7px;padding:6px 8px;background:transparent;font:inherit;color:inherit}
+.cell-input:hover{border-color:#e4e9ee}
+.cell-input:focus{border-color:#e62834;background:#fff;outline:none}
+.cell-num{max-width:84px}
+.group-block{margin-bottom:22px}
+.playoff-block{margin-top:12px;border-top:1px dashed #e4e9ee;padding-top:12px}
+.pb-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.pb-head h3{font-size:.92rem}
+.pb-matches{display:grid;gap:8px}
+.pb-match{display:flex;flex-direction:column;gap:4px}
+.pb-label{font-size:.72rem;font-weight:800;color:#e62834;text-transform:uppercase;letter-spacing:.04em}
+.pub-playoff{margin-top:10px;border-top:1px dashed #e4e9ee;padding-top:8px}
+.pub-playoff h4{margin:0 0 6px;color:#e62834;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em}
+.pub-po-row{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}

@@ -426,3 +426,12 @@ export function groupRounds(c: Competition): { round: number; items: { groupName
   c.groups.forEach(g => g.matches.forEach(m => { const arr = map.get(m.round) || []; arr.push({ groupName: g.name, m }); map.set(m.round, arr); }));
   return [...map.entries()].sort((a, b) => a[0] - b[0]).map(([round, items]) => ({ round, items: items.sort((x, y) => x.groupName.localeCompare(y.groupName, 'sk') || (x.m.table ?? 99) - (y.m.table ?? 99)) }));
 }
+
+// play-off skupiny: 1.–2. o prvé miesto, 3.–4. o tretie miesto (podľa poradia v skupine)
+export function createGroupPlayoff(group: TournamentGroup, map: Map<string, GenericEntry>): { final: Match; third: Match | null } {
+  const st = standings(group, map);
+  const mk = (aId: string | null, bId: string | null): Match => ({ id: uid(), round: 1, playerAId: aId, playerBId: bId, sets: emptySets(group.bestOf), winnerId: null, status: 'scheduled', specialResult: null });
+  const final = mk(st[0]?.entry.id ?? null, st[1]?.entry.id ?? null);
+  const third = st.length >= 4 ? mk(st[2].entry.id, st[3].entry.id) : null;
+  return { final, third };
+}

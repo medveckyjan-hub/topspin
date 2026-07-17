@@ -99,3 +99,42 @@ grant execute on function public.topspin_delete_tournament(text, text) to anon, 
 -- ⚠️ ZMEŇ SI TENTO TAJNÝ KÓD! Zadávaš ho pri zakladaní turnaja.
 insert into public.topspin_app_config(key, value) values ('create_code', 'ZMEN-MA-1234')
 on conflict (key) do update set value = excluded.value;
+
+-- ============================================================
+-- Spoločná databáza hráčov (naprieč turnajmi) — pridané neskôr
+-- ============================================================
+create table if not exists public.topspin_players (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  name_key text unique not null,
+  club text default '',
+  rating int default 0,
+  gender text default 'M',
+  photo text,
+  updated_at timestamptz not null default now()
+);
+alter table public.topspin_players enable row level security;
+
+create or replace function public.topspin_search_players(q text)
+returns table(name text, club text, rating int, gender text, photo text)
+language sql security definer set search_path = public as $$
+  select name, club, rating, gender, photo from public.topspin_players
+  where coalesce(q,'') = '' or name ilike '%' || q || '%'
+  order by name limit 20
+$$;
+
+create or replace function public.topspin_upsert_player(p_name text, p_club text, p_rating int, p_gender text, p_photo text)
+returns void language plpgsql security definer set search_path = public as $$
+declare k text;
+begin
+  k := lower(btrim(coalesce(p_name,'')));
+  if k = '' then return; end if;
+  insert into public.topspin_players(name, name_key, club, rating, gender, photo)
+  values (btrim(p_name), k, coalesce(p_club,''), coalesce(p_rating,0), coalesce(p_gender,'M'), p_photo)
+  on conflict (name_key) do update set
+    club = excluded.club, rating = excluded.rating, gender = excluded.gender,
+    photo = coalesce(excluded.photo, public.topspin_players.photo), updated_at = now();
+end $$;
+
+grant execute on function public.topspin_search_players(text) to anon, authenticated;
+grant execute on function public.topspin_upsert_player(text, text, int, text, text) to anon, authenticated;

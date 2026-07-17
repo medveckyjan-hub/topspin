@@ -49,3 +49,18 @@ export async function deleteTournament(slug: string, pin: string): Promise<void>
   const { error } = await supabase.rpc('topspin_delete_tournament', { p_slug: slug, p_pin: pin });
   if (error) throw error;
 }
+
+export type DbPlayer = { name: string; club: string; rating: number; gender: string; photo?: string };
+
+/** Vyhľadanie hráčov v spoločnej databáze podľa mena. */
+export async function searchPlayers(q: string): Promise<DbPlayer[]> {
+  const { data, error } = await supabase.rpc('topspin_search_players', { q });
+  if (error) throw error;
+  return (data ?? []) as DbPlayer[];
+}
+
+/** Uloženie/aktualizácia hráča v spoločnej databáze (podľa mena). */
+export async function upsertPlayer(p: DbPlayer): Promise<void> {
+  const { error } = await supabase.rpc('topspin_upsert_player', { p_name: p.name, p_club: p.club, p_rating: p.rating, p_gender: p.gender, p_photo: p.photo ?? null });
+  if (error) throw error;
+}
