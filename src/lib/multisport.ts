@@ -153,7 +153,7 @@ export function createGroups(entries: GenericEntry[], pref: number, bestOf: 3 | 
     buckets[idx].push(e);
     idx += dir; if (idx >= buckets.length) { idx = buckets.length - 1; dir = -1; } if (idx < 0) { idx = 0; dir = 1; }
   }
-  return buckets.map((b, i) => ({ id: uid(), name: `Skupina ${String.fromCharCode(65 + i)}`, entryIds: b.map(x => x.id), matches: generateRoundRobin(b.map(x => x.id), bestOf), qualifiers: Math.max(0, Math.min(q, b.length - 1)), bestOf }));
+  return buckets.map((b, i) => ({ id: uid(), name: `Skupina ${String.fromCharCode(65 + i)}`, entryIds: b.map(x => x.id), matches: generateRoundRobin(b.map(x => x.id), bestOf), qualifiers: Math.max(0, Math.min(q, b.length)), bestOf }));
 }
 
 export function canMovePlayer(groups: TournamentGroup[], entryId: string, targetId: string) {
@@ -169,7 +169,7 @@ export function movePlayer(groups: TournamentGroup[], entryId: string, targetId:
   return groups.map(g => {
     if (!g.entryIds.includes(entryId) && g.id !== targetId) return g;
     const ids = g.id === targetId ? [...g.entryIds, entryId] : g.entryIds.filter(i => i !== entryId);
-    return { ...g, entryIds: ids, matches: generateRoundRobin(ids, g.bestOf), qualifiers: Math.max(0, Math.min(g.qualifiers, ids.length - 1)) };
+    return { ...g, entryIds: ids, matches: generateRoundRobin(ids, g.bestOf), qualifiers: Math.max(0, Math.min(g.qualifiers, ids.length)) };
   });
 }
 
