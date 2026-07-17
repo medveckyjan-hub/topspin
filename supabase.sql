@@ -82,11 +82,19 @@ begin
   if not found then raise exception 'Neplatný PIN alebo turnaj neexistuje.'; end if;
 end $$;
 
+create or replace function public.topspin_delete_tournament(p_slug text, p_pin text)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  delete from public.topspin_tournaments where slug = p_slug and admin_pin = p_pin;
+  if not found then raise exception 'Neplatný PIN alebo turnaj neexistuje.'; end if;
+end $$;
+
 grant execute on function public.topspin_list_tournaments() to anon, authenticated;
 grant execute on function public.topspin_get_tournament(text) to anon, authenticated;
 grant execute on function public.topspin_create_tournament(text, text, text) to anon, authenticated;
 grant execute on function public.topspin_verify_pin(text, text) to anon, authenticated;
 grant execute on function public.topspin_save_tournament(text, jsonb, text) to anon, authenticated;
+grant execute on function public.topspin_delete_tournament(text, text) to anon, authenticated;
 
 -- ⚠️ ZMEŇ SI TENTO TAJNÝ KÓD! Zadávaš ho pri zakladaní turnaja.
 insert into public.topspin_app_config(key, value) values ('create_code', 'ZMEN-MA-1234')

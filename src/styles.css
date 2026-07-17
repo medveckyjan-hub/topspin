@@ -119,3 +119,62 @@
 .brand-logo-sm{width:34px;height:34px;border-radius:50%;flex:0 0 auto}
 .brand{align-items:center}
 .brand>div{display:flex;flex-direction:column}
+/* opravy: detail setov, klik na verejnej stránke, značka ako odkaz */
+a.brand{text-decoration:none;color:#fff}
+a.brand:hover{opacity:.85}
+.mr-score{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.mr-sets{color:#8a95a4;font-weight:600;font-size:.72rem;white-space:nowrap}
+.pub-match{display:flex;flex-direction:column;gap:4px}
+.pub-match.clickable{cursor:pointer}
+.pub-match.clickable:hover{border-color:#c9d3dd;background:#fafbfc}
+.pm-row{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
+.pm-row b{color:#2a3547;font-variant-numeric:tabular-nums}
+.pm-row span:last-child{text-align:right}
+.pm-sets{color:#7b8798;font-size:.78rem;text-align:center;border-top:1px dashed #e4e9ee;padding-top:4px}
+.mode-toggle{display:inline-flex;border:1px solid #d6dde5;border-radius:9px;overflow:hidden;margin-left:auto}
+.mode-toggle button{border:0;background:#fff;padding:8px 12px;font-weight:800;font-size:.76rem;color:#6d7887;cursor:pointer}
+.mode-toggle button.on{background:#e62834;color:#fff}
+/* karta hráča + klik na meno */
+.clickable-name{cursor:pointer;border-bottom:1px dashed #c9d3dd}
+.clickable-name:hover{color:#e62834;border-color:#e62834}
+.card-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.card-stats>div{background:#f6f8fa;border:1px solid #eceff2;border-radius:12px;padding:12px 8px;text-align:center}
+.card-stats strong{display:block;font-size:1.3rem;color:#172033;font-variant-numeric:tabular-nums}
+.card-stats span{font-size:.72rem;color:#7b8798;font-weight:700}
+.entry-matches{display:grid;gap:8px}
+.entry-match{border:1px solid #eceff2;border-radius:12px;padding:10px 12px}
+.em-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.em-phase{font-size:.7rem;font-weight:800;color:#9aa4b2;text-transform:uppercase;letter-spacing:.04em}
+.em-res{font-size:.72rem;font-weight:800;padding:2px 8px;border-radius:999px}
+.em-res.win{background:#eaf7ef;color:#18824a}
+.em-res.loss{background:#fdecec;color:#c72834}
+.em-main{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.em-main b{font-variant-numeric:tabular-nums;color:#2a3547}
+.em-sets{color:#7b8798;font-size:.78rem;margin-top:3px}
+@media(max-width:560px){.card-stats{grid-template-columns:repeat(2,1fr)}}
+/* avatary hráčov + mazanie turnaja */
+.avatar{border-radius:50%;object-fit:cover;display:inline-block;vertical-align:middle}
+.avatar-ph{background:#dfe5ec;color:#5a6675;display:inline-flex;align-items:center;justify-content:center;font-weight:800;border-radius:50%}
+.avatar-upload{position:relative;display:inline-flex;cursor:pointer}
+.avatar-upload input{display:none}
+.avatar-x{position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;border:0;background:#e62834;color:#fff;font-size:12px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.card-head-id{display:flex;align-items:center;gap:12px}
+.card-avatar{width:54px;height:54px}
+.danger-zone{display:flex;justify-content:space-between;align-items:center;gap:16px;border:1px solid #f3c0c0;background:#fdf6f6}
+.danger-zone p{margin:2px 0 0;color:#a06060;font-size:.82rem}
+.danger-btn{background:#e62834;color:#fff}
+.danger-btn:hover{background:#c81f2c}
+/* rozpis po kolách */
+.round-block{margin-bottom:16px}
+.round-block h3{font-size:.95rem;margin:0 0 8px;color:#172033}
+.round-block h4{font-size:.8rem;margin:10px 0 6px;color:#e62834;text-transform:uppercase;letter-spacing:.04em}
+.round-matches{display:grid;gap:6px}
+.round-match{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:8px 12px;border:1px solid #eceff2;border-radius:10px;font-size:.86rem}
+.rm-group{font-size:.72rem;font-weight:800;color:#8a95a4;background:#f1f4f7;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.rm-players{color:#2a3547}
+.rm-players i{color:#9aa4b2;font-style:normal}
+.rm-meta{color:#7b8798;font-size:.78rem;white-space:nowrap;text-align:right}
+.pub-rounds{margin-top:10px;border:1px solid #eceff2;border-radius:12px;padding:10px 14px}
+.pub-rounds summary{cursor:pointer;font-weight:800;color:#e62834}
+.pub-rounds[open] summary{margin-bottom:10px}
+@media(max-width:560px){.round-match{grid-template-columns:1fr;gap:3px}.rm-meta,.rm-group{text-align:left;justify-self:start}}

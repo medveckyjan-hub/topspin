@@ -62,6 +62,12 @@ export function isValidSet(a: number, b: number) { const hi = Math.max(a, b), lo
 
 export function validateMatch(m: Match, bestOf: number) {
   if (m.specialResult) return { valid: !!m.playerAId && !!m.playerBId, complete: true, message: '' };
+  if (m.result) {
+    const { a, b } = m.result; const need = setsToWin(bestOf);
+    if (a === 0 && b === 0) return { valid: true, complete: false, message: 'Zvoľ celkový výsledok.' };
+    const ok = a !== b && Math.max(a, b) === need && Math.min(a, b) < need;
+    return { valid: ok, complete: ok, message: ok ? '' : `Celkový výsledok musí končiť na ${need} setov (napr. ${need}:0).` };
+  }
   const need = setsToWin(bestOf); let a = 0, b = 0;
   for (let i = 0; i < m.sets.length; i++) {
     const s = m.sets[i];
@@ -76,6 +82,7 @@ export function validateMatch(m: Match, bestOf: number) {
 }
 
 export function matchSummary(m: Match) {
+  if (m.result) return { sa: m.result.a, sb: m.result.b, pa: 0, pb: 0 };
   let sa = 0, sb = 0, pa = 0, pb = 0;
   for (const s of m.sets) { if (s.a === null || s.b === null || !isValidSet(s.a, s.b)) continue; pa += s.a; pb += s.b; s.a > s.b ? sa++ : sb++; }
   return { sa, sb, pa, pb };
@@ -87,6 +94,11 @@ export function normalizeMatch(m: Match, bestOf: number): Match {
     const winner = loser === 'A' ? m.playerBId : m.playerAId;
     const status = m.specialResult.startsWith('WO') ? 'walkover' : m.specialResult.startsWith('RET') ? 'retired' : 'disqualified';
     return { ...m, winnerId: winner, status };
+  }
+  if (m.result) {
+    const { a, b } = m.result;
+    const winner = a > b ? m.playerAId : b > a ? m.playerBId : null;
+    return { ...m, winnerId: winner, status: winner ? 'finished' : 'scheduled' };
   }
   const need = setsToWin(bestOf); let a = 0, b = 0;
   for (const s of m.sets) { if (s.a === null || s.b === null || !isValidSet(s.a, s.b)) continue; if (s.a > s.b) a++; else b++; if (a === need || b === need) break; }
@@ -103,16 +115,30 @@ export function chooseGroupSizes(n: number, pref: number) {
   return Array.from({ length: g }, (_, i) => base + (i < rem ? 1 : 0));
 }
 
+/** Rozpis skupiny podľa Bergerových tabuliek (ITTF). Pre nepárny počet hráčov
+ *  sa použije najbližšie párne číslo, kde najvyššie číslo je „voľno" (bye). */
 export function generateRoundRobin(ids: string[], bestOf: number): Match[] {
-  const r: (string | null)[] = [...ids];
-  if (r.length % 2) r.push(null);
+  const n = ids.length;
+  if (n < 2) return [];
+  const even = n % 2 === 0 ? n : n + 1;
+  const m = even - 1;            // počet kôl (nepárne modulo)
+  const step = (m + 1) / 2;
+  const idOf = (num: number) => (num >= 1 && num <= ids.length ? ids[num - 1] : null); // num === even a viac = voľno
   const out: Match[] = [];
-  for (let round = 1; round < r.length; round++) {
-    for (let i = 0; i < r.length / 2; i++) {
-      const a = r[i], b = r[r.length - 1 - i];
-      if (a && b) out.push({ id: uid(), round, playerAId: round % 2 ? a : b, playerBId: round % 2 ? b : a, sets: emptySets(bestOf), winnerId: null, status: 'scheduled', specialResult: null });
+  for (let r = 1; r <= m; r++) {
+    const c = ((r - 1) * step) % m + 1;      // súper najvyššieho čísla v tomto kole
+    const pairs: [number, number][] = [[even, c]];
+    const used = new Set<number>([c]);
+    for (let i = 1; i <= m; i++) {
+      if (used.has(i)) continue;
+      let j = (2 * c - i) % m; j = ((j % m) + m) % m; if (j === 0) j = m;
+      if (j === i || used.has(j)) continue;
+      pairs.push([i, j]); used.add(i); used.add(j);
     }
-    r.splice(1, 0, r.pop() ?? null);
+    for (const [a, b] of pairs) {
+      const ida = idOf(a), idb = idOf(b);
+      if (ida && idb) out.push({ id: uid(), round: r, playerAId: ida, playerBId: idb, sets: emptySets(bestOf), winnerId: null, status: 'scheduled', specialResult: null });
+    }
   }
   return out;
 }
@@ -383,5 +409,20 @@ export function entryMap(c: Competition, players: Player[], pairs: PairEntry[], 
 // pomocník: textové skóre zápasu (sety alebo osobitný výsledok)
 export function scoreText(m: Match): string {
   if (m.specialResult) return m.specialResult.replace('_', ' ');
+  if (m.result) return `${m.result.a}:${m.result.b}`;
   let a = 0, b = 0; for (const s of m.sets) { if (s.a === null || s.b === null) continue; if (s.a > s.b) a++; else b++; } return `${a}:${b}`;
+}
+
+// detailný rozpis setov, napr. "11:1, 9:11, 11:5"
+export function setsText(m: Match): string {
+  if (m.specialResult) return m.specialResult.replace('_', ' ');
+  if (m.result) return '';
+  return m.sets.filter(s => s.a !== null && s.b !== null).map(s => `${s.a}:${s.b}`).join(', ');
+}
+
+// rozpis skupinových zápasov po kolách (naprieč všetkými skupinami súťaže)
+export function groupRounds(c: Competition): { round: number; items: { groupName: string; m: Match }[] }[] {
+  const map = new Map<number, { groupName: string; m: Match }[]>();
+  c.groups.forEach(g => g.matches.forEach(m => { const arr = map.get(m.round) || []; arr.push({ groupName: g.name, m }); map.set(m.round, arr); }));
+  return [...map.entries()].sort((a, b) => a[0] - b[0]).map(([round, items]) => ({ round, items: items.sort((x, y) => x.groupName.localeCompare(y.groupName, 'sk') || (x.m.table ?? 99) - (y.m.table ?? 99)) }));
 }

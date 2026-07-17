@@ -13,7 +13,7 @@ const items: [View, string, any][] = [
   ['exports', 'Tlač a export', FileDown],
 ];
 export function Sidebar({ active, onChange, playerCount, groupCount }: { active: View; onChange: (v: View) => void; playerCount: number; groupCount: number }) {
-  return <aside className="sidebar"><div className="brand"><img className="brand-logo" src="/topspin.png" alt="TOPSPIN" /><div><strong>TOPSPIN</strong><span>Tournament PRO</span></div></div>
+  return <aside className="sidebar"><a className="brand" href="/" title="Späť na zoznam turnajov"><img className="brand-logo" src="/topspin.png" alt="TOPSPIN" /><div><strong>TOPSPIN</strong><span>← Turnaje</span></div></a>
     <nav>{items.map(([v, l, I]) => <button key={v} className={active === v ? 'active' : ''} onClick={() => onChange(v)}><I size={19} />{l}</button>)}</nav>
     <div className="sidebar-stats"><strong>{playerCount}</strong><span>hráčov</span><strong>{groupCount}</strong><span>skupín</span></div>
   </aside>;

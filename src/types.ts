@@ -1,8 +1,8 @@
-export type Player={id:string;name:string;club:string;rating:number;gender:'M'|'F'|'X'};
+export type Player={id:string;name:string;club:string;rating:number;gender:'M'|'F'|'X';photo?:string};
 export type SetScore={a:number|null;b:number|null};
 export type SpecialResult='WO_A'|'WO_B'|'RET_A'|'RET_B'|'DSQ_A'|'DSQ_B'|null;
 export type MatchStatus='scheduled'|'playing'|'finished'|'walkover'|'retired'|'disqualified';
-export type Match={id:string;round:number;playerAId:string|null;playerBId:string|null;sets:SetScore[];winnerId:string|null;status:MatchStatus;specialResult?:SpecialResult;table?:number;scheduledTime?:string;note?:string};
+export type Match={id:string;round:number;playerAId:string|null;playerBId:string|null;sets:SetScore[];winnerId:string|null;status:MatchStatus;specialResult?:SpecialResult;result?:{a:number;b:number}|null;table?:number;scheduledTime?:string;note?:string};
 export type EntryKind='player'|'pair'|'team';
 export type CompetitionType='singles'|'doubles'|'mixed'|'teams';
 export type PairEntry={id:string;name:string;playerIds:[string,string];club:string};

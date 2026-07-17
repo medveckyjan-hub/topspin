@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useLocation, Link } from 'react-router-dom';
+import { useParams, useLocation, Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { Lock, Trophy, Link as LinkIcon, Eye, RotateCcw, Save } from 'lucide-react';
+import { Lock, Trophy, Link as LinkIcon, Eye, RotateCcw, Save, Home } from 'lucide-react';
 import { TournamentEditor } from './App';
-import { getTournament, saveTournament, verifyPin } from './lib/supabase';
+import { deleteTournament, getTournament, saveTournament, verifyPin } from './lib/supabase';
 import type { TournamentState } from './types';
 import './styles.css';
 
@@ -27,6 +27,12 @@ export function AdminApp() {
   const [pending, setPending] = useState<Backup | null>(null);
   const latest = useRef<TournamentState | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nav = useNavigate();
+  const removeTournament = async () => {
+    if (!confirm('Naozaj nezvratne zmazať celý turnaj vrátane výsledkov?')) return;
+    try { await deleteTournament(slug, pin); try { localStorage.removeItem(backupKey(slug)); } catch { /* ignore */ } nav('/'); }
+    catch (e) { alert('Zmazanie zlyhalo: ' + (e as Error).message); }
+  };
 
   const openWith = async (p: string) => {
     setErr('');
@@ -38,7 +44,7 @@ export function AdminApp() {
       setInitial(t.data); setName(t.name); setPin(p); setUnlocked(true);
     } catch (e) { setErr((e as Error).message); }
   };
-  useEffect(() => { if (navPin) openWith(navPin); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { setUnlocked(false); setInitial(null); setEntry(''); setSaveState('idle'); setPin(navPin || ''); if (navPin) openWith(navPin); /* eslint-disable-next-line */ }, [slug]);
 
   const pushCloud = async (s: TournamentState) => { setSaveState('saving'); try { await saveTournament(slug, s, pin); setSaveState('saved'); } catch { setSaveState('error'); } };
   const save = (s: TournamentState) => {
@@ -66,10 +72,11 @@ export function AdminApp() {
     <span className={`save-chip ${saveState}`} onClick={saveState === 'error' ? forceSave : undefined} title={saveState === 'error' ? 'Klikni na opätovné uloženie' : ''}>
       {saveState === 'saving' ? 'Ukladám…' : saveState === 'error' ? 'Chyba – skús znova' : 'Uložené'}</span>
     {saveState === 'error' && <button className="link-btn" onClick={forceSave}><Save size={13} />Uložiť</button>}
+    <a className="link-btn" href="/"><Home size={13} />Turnaje</a>
     <a className="link-btn" href={`/t/${slug}`} target="_blank" rel="noreferrer"><Eye size={13} />Verejné</a>
     <button className="link-btn" onClick={() => navigator.clipboard?.writeText(url)}><LinkIcon size={13} />Odkaz</button>
     <span className="mini-qr"><QRCodeSVG value={url} size={40} /></span>
   </div>;
 
-  return initial ? <TournamentEditor key={seed} initial={initial} onSave={save} banner={banner} /> : null;
+  return initial ? <TournamentEditor key={seed} initial={initial} onSave={save} banner={banner} onDelete={removeTournament} /> : null;
 }

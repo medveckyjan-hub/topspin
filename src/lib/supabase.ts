@@ -43,3 +43,9 @@ export async function saveTournament(slug: string, data: TournamentState, pin: s
   const { error } = await supabase.rpc('topspin_save_tournament', { p_slug: slug, p_data: data, p_pin: pin });
   if (error) throw error;
 }
+
+/** Zmazanie turnaja – server overí PIN. */
+export async function deleteTournament(slug: string, pin: string): Promise<void> {
+  const { error } = await supabase.rpc('topspin_delete_tournament', { p_slug: slug, p_pin: pin });
+  if (error) throw error;
+}

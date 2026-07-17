@@ -2,9 +2,10 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import { Menu, Plus, Trash2, Download, Printer, Shuffle, ShieldCheck, FileSpreadsheet, X, Wand2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Sidebar } from './components/Sidebar';
+import { EntryCard } from './components/EntryCard';
 import {
   TEAM_SYSTEMS, applySubstitution, autoSchedule, buildTeamTie, canMovePlayer, createGroups, createKnockout,
-  advanceKnockout as advance, entryMap, movePlayer, normalizeMatch, resizeSets, scoreTeamTie, scoreText, setGroupBestOf, setRoundBestOf, standings, uid, validateMatch,
+  advanceKnockout as advance, entryMap, groupRounds, movePlayer, normalizeMatch, resizeSets, scoreTeamTie, scoreText, setsText, setsToWin, setGroupBestOf, setRoundBestOf, standings, uid, validateMatch,
 } from './lib/multisport';
 import type {
   Competition, CompetitionType, Knockout, Match, Player, TeamSystemId, TeamTie, TournamentGroup, TournamentState, View,
@@ -22,12 +23,13 @@ type Detail =
   | { kind: 'ko'; compId: string; side: 'main' | 'consolation'; roundIdx: number; matchId: string }
   | { kind: 'team'; compId: string; tieId: string; rubberId: string };
 
-export function TournamentEditor({ initial, onSave, banner }: { initial: TournamentState; onSave: (s: TournamentState) => void; banner?: React.ReactNode }) {
+export function TournamentEditor({ initial, onSave, banner, onDelete }: { initial: TournamentState; onSave: (s: TournamentState) => void; banner?: React.ReactNode; onDelete?: () => void }) {
   const [state, setState] = useState<TournamentState>(initial);
   const [view, setView] = useState<View>('dashboard');
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState('');
   const [detail, setDetail] = useState<Detail | null>(null);
+  const [card, setCard] = useState<{ compId: string; entryId: string; name: string } | null>(null);
   const first = useRef(true);
   useEffect(() => { if (first.current) { first.current = false; return; } onSave(state); }, [state]);
 
@@ -98,12 +100,12 @@ export function TournamentEditor({ initial, onSave, banner }: { initial: Tournam
           <div className="status">{banner}<span><ShieldCheck size={15} />Uložené v cloude</span></div>
         </header>
         <div className="content-body">
-          {view === 'dashboard' && <Dashboard state={state} setState={setState} />}
+          {view === 'dashboard' && <Dashboard state={state} setState={setState} onDelete={onDelete} />}
           {view === 'players' && <Players state={state} setState={setState} add={addPlayer} importPlayers={importPlayers} />}
           {view === 'entries' && <Entries state={state} addPair={addPair} addTeam={addTeam} />}
           {view === 'competitions' && <Competitions state={state} add={addCompetition} update={updateComp} remove={removeComp} setNotice={setNotice} />}
           {view === 'groups' && <Groups state={state} update={updateComp} setNotice={setNotice} />}
-          {view === 'results' && <Results state={state} update={updateComp} label={label} openMatch={setDetail} />}
+          {view === 'results' && <Results state={state} update={updateComp} label={label} openMatch={setDetail} openCard={(compId, entryId, name) => setCard({ compId, entryId, name })} />}
           {view === 'knockout' && <Knockout state={state} update={updateComp} label={label} openMatch={setDetail} setNotice={setNotice} />}
           {view === 'schedule' && <Schedule state={state} setState={setState} setNotice={setNotice} label={label} />}
           {view === 'teams' && <Teams state={state} update={updateComp} label={label} openMatch={setDetail} setNotice={setNotice} />}
@@ -111,6 +113,7 @@ export function TournamentEditor({ initial, onSave, banner }: { initial: Tournam
         </div>
       </main>
 
+      {card && (() => { const comp = state.competitions.find(c => c.id === card.compId); return comp ? <EntryCard competition={comp} entryId={card.entryId} name={card.name} label={label} avatar={state.players.find(p => p.id === card.entryId)?.photo} onClose={() => setCard(null)} /> : null; })()}
       {detail && <MatchModal state={state} detail={detail} label={label} clubOf={clubOf}
         onClose={closeDetail}
         onChange={(m, bestOf) => {
@@ -123,7 +126,7 @@ export function TournamentEditor({ initial, onSave, banner }: { initial: Tournam
 }
 
 // ============================ POHĽADY ============================
-function Dashboard({ state, setState }: { state: TournamentState; setState: React.Dispatch<React.SetStateAction<TournamentState>> }) {
+function Dashboard({ state, setState, onDelete }: { state: TournamentState; setState: React.Dispatch<React.SetStateAction<TournamentState>>; onDelete?: () => void }) {
   const s = state.settings;
   const set = (patch: Partial<typeof s>) => setState(st => ({ ...st, settings: { ...st.settings, ...patch } }));
   return <div className="dash">
@@ -137,11 +140,32 @@ function Dashboard({ state, setState }: { state: TournamentState; setState: Reac
       <label>Oddych (min.)<input type="number" min={0} value={s.restMinutes} onChange={e => set({ restMinutes: Number(e.target.value) || 0 })} /></label>
     </div></section>
     <div className="stats-grid">{[[state.players.length, 'Hráči'], [state.pairs.length, 'Páry'], [state.teams.length, 'Družstvá'], [state.competitions.length, 'Súťaže']].map(x => <div className="card stat" key={x[1] as string}><strong>{x[0]}</strong><span>{x[1]}</span></div>)}</div>
+    {onDelete && <section className="card danger-zone"><div><strong>Zmazať turnaj</strong><p>Nezvratne odstráni celý turnaj vrátane výsledkov.</p></div><button className="button danger-btn" onClick={onDelete}><Trash2 size={16} />Zmazať turnaj</button></section>}
   </div>;
+}
+
+async function fileToThumb(file: File, size = 220, quality = 0.72): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const s = Math.min(img.width, img.height);
+    const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, size, size);
+    return canvas.toDataURL('image/jpeg', quality);
+  } finally { URL.revokeObjectURL(url); }
+}
+
+function Avatar({ photo, name, size = 40 }: { photo?: string; name: string; size?: number }) {
+  const initials = name.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  return photo
+    ? <img className="avatar" src={photo} alt={name} style={{ width: size, height: size }} />
+    : <span className="avatar avatar-ph" style={{ width: size, height: size, fontSize: size * 0.38 }}>{initials || '?'}</span>;
 }
 
 function Players({ state, setState, add, importPlayers }: { state: TournamentState; setState: React.Dispatch<React.SetStateAction<TournamentState>>; add: (n: string, c: string, r: number, g: Player['gender']) => void; importPlayers: (f?: File) => void }) {
   const [f, setF] = useState({ n: '', c: '', r: '', g: 'M' as Player['gender'] });
+  const setPhoto = async (id: string, file?: File) => { if (!file) return; const photo = await fileToThumb(file); setState(s => ({ ...s, players: s.players.map(p => p.id === id ? { ...p, photo } : p) })); };
   return <div className="page-grid">
     <section className="card form-card"><h2>Pridať hráča</h2>
       <div className="player-form">
@@ -154,8 +178,11 @@ function Players({ state, setState, add, importPlayers }: { state: TournamentSta
       <label className="upload"><FileSpreadsheet /><div><strong>Import XLSX / CSV</strong><span>Stĺpce: meno, klub, rating, pohlavie</span></div><input type="file" accept=".xlsx,.xls,.csv" onChange={e => importPlayers(e.target.files?.[0])} /></label>
     </section>
     <section className="card roster-card"><div className="card-header"><h2>Hráči ({state.players.length})</h2><button className="text-danger" onClick={() => setState(s => ({ ...s, players: [] }))}><Trash2 size={16} />Vymazať</button></div>
-      <div className="table-scroll"><table><thead><tr><th>#</th><th>Meno</th><th>Klub</th><th>Poh.</th><th>Rating</th><th /></tr></thead><tbody>
-        {[...state.players].sort((a, b) => b.rating - a.rating).map((p, i) => <tr key={p.id}><td>{i + 1}</td><td><strong>{p.name}</strong></td><td>{p.club || '—'}</td><td>{p.gender}</td><td>{p.rating || '—'}</td><td><button className="icon-button danger" onClick={() => setState(s => ({ ...s, players: s.players.filter(x => x.id !== p.id) }))}><Trash2 size={16} /></button></td></tr>)}
+      <div className="table-scroll"><table><thead><tr><th>#</th><th>Foto</th><th>Meno</th><th>Klub</th><th>Poh.</th><th>Rating</th><th /></tr></thead><tbody>
+        {[...state.players].sort((a, b) => b.rating - a.rating).map((p, i) => <tr key={p.id}><td>{i + 1}</td>
+          <td><label className="avatar-upload" title="Nahrať / zmeniť fotku"><Avatar photo={p.photo} name={p.name} /><input type="file" accept="image/*" onChange={e => setPhoto(p.id, e.target.files?.[0])} />{p.photo && <button className="avatar-x" onClick={ev => { ev.preventDefault(); setState(s => ({ ...s, players: s.players.map(x => x.id === p.id ? { ...x, photo: undefined } : x) })); }}>×</button>}</label></td>
+          <td><strong>{p.name}</strong></td><td>{p.club || '—'}</td><td>{p.gender}</td><td>{p.rating || '—'}</td>
+          <td><button className="icon-button danger" onClick={() => setState(s => ({ ...s, players: s.players.filter(x => x.id !== p.id) }))}><Trash2 size={16} /></button></td></tr>)}
       </tbody></table></div>
     </section>
   </div>;
@@ -233,7 +260,7 @@ function Groups({ state, update, setNotice }: { state: TournamentState; update: 
   })}</div>;
 }
 
-function Results({ state, update, label, openMatch }: { state: TournamentState; update: (id: string, fn: (c: Competition) => Competition) => void; label: (id: string | null) => string; openMatch: (d: Detail) => void }) {
+function Results({ state, update, label, openMatch, openCard }: { state: TournamentState; update: (id: string, fn: (c: Competition) => Competition) => void; label: (id: string | null) => string; openMatch: (d: Detail) => void; openCard: (compId: string, entryId: string, name: string) => void }) {
   const comps = state.competitions.filter(c => c.type !== 'teams' && c.groups.length);
   if (!comps.length) return <Empty title="Žiadne výsledky" text="Najprv vytvor skupiny." />;
   return <div className="matches-stack">{comps.map(c => {
@@ -244,7 +271,7 @@ function Results({ state, update, label, openMatch }: { state: TournamentState; 
         <div><div className="group-mini-head"><h3>{g.name} <span className="pill">{done}/{g.matches.length}</span></h3><BestOf value={g.bestOf} onChange={v => update(c.id, x => ({ ...x, groups: x.groups.map(y => y.id === g.id ? setGroupBestOf(y, v) : y) }))} /></div>
           {g.matches.map(m => <MatchRow key={m.id} m={m} label={label} onClick={() => openMatch({ kind: 'group', compId: c.id, groupId: g.id, matchId: m.id })} />)}</div>
         <div><h3>Tabuľka</h3><div className="table-scroll"><table><thead><tr><th>#</th><th>Účastník</th><th>Z</th><th>V</th><th>P</th><th>B</th><th>Sety</th><th>Lopt.</th></tr></thead><tbody>
-          {st.map(r => <tr key={r.entry.id} className={r.qualified ? 'qualified-row' : ''}><td>{r.position}</td><td><strong>{r.entry.name}</strong>{r.tieNote ? <small className="tie"> · {r.tieNote}</small> : ''}</td><td>{r.played}</td><td>{r.wins}</td><td>{r.losses}</td><td><b>{r.matchPoints}</b></td><td>{r.setsFor}:{r.setsAgainst}</td><td>{r.pointsFor}:{r.pointsAgainst}</td></tr>)}
+          {st.map(r => <tr key={r.entry.id} className={r.qualified ? 'qualified-row' : ''}><td>{r.position}</td><td><strong className="clickable-name" onClick={() => openCard(c.id, r.entry.id, r.entry.name)}>{r.entry.name}</strong>{r.tieNote ? <small className="tie"> · {r.tieNote}</small> : ''}</td><td>{r.played}</td><td>{r.wins}</td><td>{r.losses}</td><td><b>{r.matchPoints}</b></td><td>{r.setsFor}:{r.setsAgainst}</td><td>{r.pointsFor}:{r.pointsAgainst}</td></tr>)}
         </tbody></table></div></div>
       </div>;
     })}</section>;
@@ -276,14 +303,23 @@ function Knockout({ state, update, label, openMatch, setNotice }: { state: Tourn
 }
 
 function Schedule({ state, setState, setNotice, label }: { state: TournamentState; setState: React.Dispatch<React.SetStateAction<TournamentState>>; setNotice: (s: string) => void; label: (id: string | null) => string }) {
-  const rows = state.competitions.flatMap(c => c.groups.flatMap(g => g.matches.map(m => ({ c, g, m }))));
-  return <section className="card schedule"><div className="card-header"><h2>Stoly a harmonogram</h2>
-    <button className="button primary" onClick={() => { setState(s => ({ ...s, competitions: autoSchedule(s.competitions, s.settings.tables, '09:00', s.settings.matchMinutes, s.settings.restMinutes) })); setNotice('Harmonogram vytvorený bez konfliktov hráčov.'); }}>Automaticky naplánovať</button></div>
-    {!rows.length ? <p className="muted">Zatiaľ žiadne skupinové zápasy.</p> :
-      <div className="table-scroll"><table><thead><tr><th>Súťaž</th><th>Skupina</th><th>Kolo</th><th>Zápas</th><th>Stôl</th><th>Čas</th></tr></thead><tbody>
-        {rows.sort((a, b) => (a.m.scheduledTime || '').localeCompare(b.m.scheduledTime || '')).map(({ c, g, m }) => <tr key={m.id}><td>{c.name}</td><td>{g.name}</td><td>{m.round}</td><td>{label(m.playerAId)} – {label(m.playerBId)}</td><td>{m.table ?? '—'}</td><td>{m.scheduledTime ?? '—'}</td></tr>)}
-      </tbody></table></div>}
-  </section>;
+  const comps = state.competitions.filter(c => c.groups.length);
+  return <div className="matches-stack">
+    <section className="card"><div className="card-header"><h2>Stoly a harmonogram</h2>
+      <button className="button primary" onClick={() => { setState(s => ({ ...s, competitions: autoSchedule(s.competitions, s.settings.tables, '09:00', s.settings.matchMinutes, s.settings.restMinutes) })); setNotice('Harmonogram vytvorený bez konfliktov hráčov.'); }}>Automaticky naplánovať</button></div>
+      {!comps.length && <p className="muted">Zatiaľ žiadne skupinové zápasy.</p>}
+    </section>
+    {comps.map(c => <section className="card form-card" key={c.id}><h2>{c.name} — rozpis po kolách</h2>
+      {groupRounds(c).map(r => <div className="round-block" key={r.round}>
+        <h3>{r.round}. kolo</h3>
+        <div className="round-matches">{r.items.map(({ groupName, m }) => <div className="round-match" key={m.id}>
+          <span className="rm-group">{groupName}</span>
+          <span className="rm-players">{label(m.playerAId)} <i>–</i> {label(m.playerBId)}</span>
+          <span className="rm-meta">{m.table ? `stôl ${m.table}` : ''}{m.scheduledTime ? ` · ${m.scheduledTime}` : ''}{m.winnerId ? ` · ${scoreText(m)}` : ''}</span>
+        </div>)}</div>
+      </div>)}
+    </section>)}
+  </div>;
 }
 
 function Teams({ state, update, label, openMatch, setNotice }: { state: TournamentState; update: (id: string, fn: (c: Competition) => Competition) => void; label: (id: string | null) => string; openMatch: (d: Detail) => void; setNotice: (s: string) => void }) {
@@ -336,7 +372,7 @@ function MatchRow({ m, label, onClick, compact }: { m: Match; label: (id: string
   const ready = m.playerAId && m.playerBId;
   return <div className={compact ? 'match-row compact' : 'match-row'} onClick={ready ? onClick : undefined} role={ready ? 'button' : undefined}>
     <div className="mr-players"><span className={m.winnerId === m.playerAId ? 'win' : ''}>{label(m.playerAId)}</span><span className={m.winnerId === m.playerBId ? 'win' : ''}>{label(m.playerBId)}</span></div>
-    <div className="mr-score">{m.winnerId ? scoreText(m) : ready ? <span className="mr-open">zapísať ›</span> : ''}</div>
+    <div className="mr-score">{m.winnerId ? <><b>{scoreText(m)}</b>{!m.specialResult && setsText(m) && <small className="mr-sets">{setsText(m)}</small>}{m.specialResult && <small className="mr-sets">{setsText(m)}</small>}</> : ready ? <span className="mr-open">zapísať ›</span> : ''}</div>
   </div>;
 }
 
@@ -356,12 +392,19 @@ function MatchModal({ state, detail, label, clubOf, onClose, onChange }: {
 
   const setScore = (i: number, side: 'a' | 'b', v: string) => {
     const sets = match.sets.map((s, j) => j === i ? { ...s, [side]: v === '' ? null : Math.max(0, Number(v)) } : s);
-    onChange({ ...match, sets, specialResult: null }, bestOf);
+    onChange({ ...match, sets, specialResult: null, result: null }, bestOf);
   };
-  const changeBestOf = (nb: 3 | 5 | 7) => onChange({ ...match, sets: resizeSets(match.sets, nb) }, nb);
-  const special = (v: string) => onChange({ ...match, specialResult: (v || null) as Match['specialResult'], sets: match.sets.map(() => ({ a: null, b: null })) }, bestOf);
+  const changeBestOf = (nb: 3 | 5 | 7) => onChange({ ...match, sets: resizeSets(match.sets, nb), result: match.result ? { a: 0, b: 0 } : null }, nb);
+  const special = (v: string) => onChange({ ...match, specialResult: (v || null) as Match['specialResult'], result: null, sets: match.sets.map(() => ({ a: null, b: null })) }, bestOf);
+  const setResult = (a: number, b: number) => onChange({ ...match, result: { a, b }, specialResult: null, sets: match.sets.map(() => ({ a: null, b: null })) }, bestOf);
+  const setMode = (mode: 'sets' | 'final') => onChange({ ...match, result: mode === 'final' ? { a: 0, b: 0 } : null, specialResult: null, sets: match.sets.map(() => ({ a: null, b: null })) }, bestOf);
   const meta = (patch: Partial<Match>) => onChange({ ...match, ...patch }, bestOf);
   const val = validateMatch(match, bestOf);
+  const finalMode = !!match.result;
+  const need = setsToWin(bestOf);
+  const finalOptions: [number, number][] = [];
+  for (let l = need - 1; l >= 0; l--) finalOptions.push([need, l]);
+  for (let l = 0; l < need; l++) finalOptions.push([l, need]);
 
   const printRecord = () => {
     const rowsHtml = match.sets.map((s, i) => `<tr><td>${i + 1}. set</td><td class="b">${s.a ?? ''}</td><td class="b">${s.b ?? ''}</td></tr>`).join('');
@@ -386,11 +429,18 @@ function MatchModal({ state, detail, label, clubOf, onClose, onChange }: {
   return <div className="modal-backdrop" onClick={onClose}><div className="modal" onClick={e => e.stopPropagation()}>
     <div className="modal-head"><div><span className="kicker">{ctxTitle} · {ctxSub}</span><h2>{label(match.playerAId)} <span className="vs">vs</span> {label(match.playerBId)}</h2></div><button className="icon-button" onClick={onClose}><X /></button></div>
     <div className="modal-body">
-      <div className="modal-row"><label>Úroveň zápasu:</label><BestOf value={bestOf} onChange={changeBestOf} /></div>
-      <div className="set-grid">{match.sets.map((s, i) => <div key={i} className="set-cell"><small>Set {i + 1}</small>
-        <input type="number" min={0} value={s.a ?? ''} disabled={!!match.specialResult} onChange={e => setScore(i, 'a', e.target.value)} />
-        <b>:</b>
-        <input type="number" min={0} value={s.b ?? ''} disabled={!!match.specialResult} onChange={e => setScore(i, 'b', e.target.value)} /></div>)}</div>
+      <div className="modal-row"><label>Úroveň zápasu:</label><BestOf value={bestOf} onChange={changeBestOf} />
+        <div className="mode-toggle"><button className={!finalMode ? 'on' : ''} onClick={() => setMode('sets')}>Po setoch</button><button className={finalMode ? 'on' : ''} onClick={() => setMode('final')}>Len výsledok</button></div></div>
+      {finalMode
+        ? <div className="modal-row"><label>Celkový výsledok:</label>
+            <select value={`${match.result!.a}:${match.result!.b}`} onChange={e => { const [a, b] = e.target.value.split(':').map(Number); setResult(a, b); }}>
+              <option value="0:0">— zvoľ —</option>
+              {finalOptions.map(([a, b]) => <option key={`${a}:${b}`} value={`${a}:${b}`}>{a}:{b}</option>)}
+            </select></div>
+        : <div className="set-grid">{match.sets.map((s, i) => <div key={i} className="set-cell"><small>Set {i + 1}</small>
+            <input type="number" min={0} value={s.a ?? ''} disabled={!!match.specialResult} onChange={e => setScore(i, 'a', e.target.value)} />
+            <b>:</b>
+            <input type="number" min={0} value={s.b ?? ''} disabled={!!match.specialResult} onChange={e => setScore(i, 'b', e.target.value)} /></div>)}</div>}
       <div className="modal-row"><label>Osobitný výsledok:</label>
         <select value={match.specialResult ?? ''} onChange={e => special(e.target.value)}>
           <option value="">Bežný výsledok</option><option value="WO_A">Kontumácia (WO) – A neprišiel</option><option value="WO_B">Kontumácia (WO) – B neprišiel</option>

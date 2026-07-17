@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { Trophy, Settings, Link as LinkIcon } from 'lucide-react';
+import { EntryCard } from './components/EntryCard';
 import { getTournament } from './lib/supabase';
-import { TEAM_SYSTEMS, entryMap, scoreText, standings } from './lib/multisport';
+import { TEAM_SYSTEMS, entryMap, groupRounds, scoreText, setsText, standings } from './lib/multisport';
 import type { Competition, KnockoutRound, Match, TournamentState } from './types';
 import './styles.css';
 
@@ -12,6 +13,7 @@ export function PublicView() {
   const [data, setData] = useState<TournamentState | null>(null);
   const [name, setName] = useState('');
   const [state, setState] = useState<'load' | 'ok' | 'missing'>('load');
+  const [card, setCard] = useState<{ comp: Competition; entryId: string; name: string } | null>(null);
 
   useEffect(() => { (async () => { try { const t = await getTournament(slug); if (t) { setData(t.data); setName(t.name); setState('ok'); } else setState('missing'); } catch { setState('missing'); } })(); }, [slug]);
   const url = typeof window !== 'undefined' ? `${window.location.origin}/t/${slug}` : '';
@@ -54,11 +56,16 @@ export function PublicView() {
         <h2>{c.name}</h2>
         {c.groups.map(g => <div className="pub-group" key={g.id}>
           <h3>{g.name}</h3>
-          <div className="table-scroll"><table><thead><tr><th>#</th><th>Účastník</th><th>V</th><th>P</th><th>B</th><th>Sety</th></tr></thead><tbody>
-            {standings(g, em).map(r => <tr key={r.entry.id} className={r.qualified ? 'qualified-row' : ''}><td>{r.position}</td><td><strong>{r.entry.name}</strong></td><td>{r.wins}</td><td>{r.losses}</td><td><b>{r.matchPoints}</b></td><td>{r.setsFor}:{r.setsAgainst}</td></tr>)}
+          <div className="table-scroll"><table><thead><tr><th>#</th><th>Účastník</th><th>V</th><th>P</th><th>B</th><th>Sety</th><th>Lopt.</th></tr></thead><tbody>
+            {standings(g, em).map(r => <tr key={r.entry.id} className={r.qualified ? 'qualified-row' : ''}><td>{r.position}</td><td><strong className="clickable-name" onClick={() => setCard({ comp: c, entryId: r.entry.id, name: r.entry.name })}>{r.entry.name}</strong></td><td>{r.wins}</td><td>{r.losses}</td><td><b>{r.matchPoints}</b></td><td>{r.setsFor}:{r.setsAgainst}</td><td>{r.pointsFor}:{r.pointsAgainst}</td></tr>)}
           </tbody></table></div>
           <div className="pub-matches">{g.matches.filter(m => m.winnerId).map(m => <PubMatch key={m.id} m={m} label={label} />)}</div>
         </div>)}
+        {c.groups.length > 0 && <details className="pub-rounds"><summary>Rozpis po kolách</summary>
+          {groupRounds(c).map(r => <div className="round-block" key={r.round}><h4>{r.round}. kolo</h4>
+            {r.items.map(({ groupName, m }) => <div className="round-match" key={m.id}><span className="rm-group">{groupName}</span><span className="rm-players">{label(m.playerAId)} <i>–</i> {label(m.playerBId)}</span><span className="rm-meta">{m.table ? `stôl ${m.table}` : ''}{m.scheduledTime ? ` · ${m.scheduledTime}` : ''}{m.winnerId ? ` · ${scoreText(m)}` : ''}</span></div>)}
+          </div>)}
+        </details>}
         {c.ko.main.length > 0 && <><h3 className="bracket-title">Hlavný pavúk</h3>{bracketRounds(c.ko.main)}</>}
         {c.ko.consolation.length > 0 && <><h3 className="bracket-title">Útecha</h3>{bracketRounds(c.ko.consolation)}</>}
       </section>;
@@ -72,11 +79,16 @@ export function PublicView() {
       </tbody></table></div></section>}
 
     <div className="pub-foot"><Link className="button" to={`/t/${slug}/admin`}><Settings size={16} />Spravovať (PIN)</Link></div>
+    {card && <EntryCard competition={card.comp} entryId={card.entryId} name={card.name} label={label} avatar={data.players.find(p => p.id === card.entryId)?.photo} onClose={() => setCard(null)} />}
   </Shell>;
 }
 
 function PubMatch({ m, label }: { m: Match; label: (id: string | null) => string }) {
-  return <div className="pub-match"><span className={m.winnerId === m.playerAId ? 'win' : ''}>{label(m.playerAId)}</span><b>{m.winnerId ? scoreText(m) : 'vs'}</b><span className={m.winnerId === m.playerBId ? 'win' : ''}>{label(m.playerBId)}</span></div>;
+  const detail = m.winnerId ? setsText(m) : '';
+  return <div className="pub-match">
+    <div className="pm-row"><span className={m.winnerId === m.playerAId ? 'win' : ''}>{label(m.playerAId)}</span><b>{m.winnerId ? scoreText(m) : 'vs'}</b><span className={m.winnerId === m.playerBId ? 'win' : ''}>{label(m.playerBId)}</span></div>
+    {detail && <div className="pm-sets">{detail}</div>}
+  </div>;
 }
 const hasSchedule = (cs: Competition[]) => cs.some(c => c.groups.some(g => g.matches.some(m => m.scheduledTime)));
 
