@@ -435,3 +435,42 @@ export function createGroupPlayoff(group: TournamentGroup, map: Map<string, Gene
   const third = st.length >= 4 ? mk(st[2].entry.id, st[3].entry.id) : null;
   return { final, third };
 }
+
+/** Finálne poradie kategórie (ako SSTZ): 1, 2, 3–4, 5–8, 9–16 … podľa vypadnutia z pavúka,
+ *  nepostupujúci zo skupín zoradení podľa umiestnenia v skupine (vetvené po miestach). */
+export function finalOrder(c: Competition, map: Map<string, GenericEntry>): FinalRow[] {
+  const groupPos = new Map<string, number>();
+  c.groups.forEach(g => standings(g, map).forEach(r => groupPos.set(r.entry.id, r.position)));
+  const rows: FinalRow[] = [];
+  const placed = new Set<string>();
+  const put = (id: string | null, place: number, label: string) => { if (!id) return; const e = map.get(id); if (e && !placed.has(id)) { rows.push({ entry: e, place, placeLabel: label }); placed.add(id); } };
+  const loser = (m: Match) => (m.winnerId ? (m.winnerId === m.playerAId ? m.playerBId : m.playerAId) : null);
+
+  const main = c.ko.main.filter(r => r.kind !== 'third');
+  const third = c.ko.main.find(r => r.kind === 'third');
+  if (main.length) {
+    const fin = main[main.length - 1].matches[0];
+    if (fin?.winnerId) { put(fin.winnerId, 1, '1'); put(loser(fin), 2, '2'); }
+    const semi = main[main.length - 2];
+    const tm = third?.matches[0];
+    if (tm && tm.winnerId) { put(tm.winnerId, 3, '3'); put(loser(tm), 4, '4'); }
+    else if (semi) semi.matches.forEach(m => put(loser(m), 3, '3–4'));
+    for (let ri = main.length - 3; ri >= 0; ri--) {
+      const mc = main[ri].matches.length; const start = mc + 1, end = 2 * mc; const label = `${start}–${end}`;
+      main[ri].matches.forEach(m => put(loser(m), start, label));
+    }
+  }
+  // zvyšok (nepostupujúci + neumiestnení) podľa miesta v skupine
+  const rest = c.entryIds.map(id => map.get(id)).filter((e): e is GenericEntry => !!e && !placed.has(e.id));
+  const byPos = new Map<number, GenericEntry[]>();
+  rest.forEach(e => { const p = groupPos.get(e.id) ?? 99; (byPos.get(p) ?? byPos.set(p, []).get(p)!).push(e); });
+  let base = rows.reduce((mx, r) => Math.max(mx, r.place), 0);
+  [...byPos.keys()].sort((a, b) => a - b).forEach(pos => {
+    const arr = byPos.get(pos)!.sort((a, b) => b.rating - a.rating);
+    const start = base + 1, end = base + arr.length;
+    const label = arr.length > 1 ? `${start}–${end}` : `${start}`;
+    arr.forEach(e => rows.push({ entry: e, place: start, placeLabel: label }));
+    base = end;
+  });
+  return rows.sort((a, b) => a.place - b.place);
+}

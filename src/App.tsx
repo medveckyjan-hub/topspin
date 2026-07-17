@@ -5,7 +5,7 @@ import { Sidebar } from './components/Sidebar';
 import { EntryCard } from './components/EntryCard';
 import {
   TEAM_SYSTEMS, applySubstitution, autoSchedule, buildTeamTie, canMovePlayer, createGroupPlayoff, createGroups, createKnockout,
-  advanceKnockout as advance, entryMap, groupRounds, movePlayer, normalizeMatch, resizeSets, scoreTeamTie, scoreText, setsText, setsToWin, setGroupBestOf, setRoundBestOf, standings, uid, validateMatch,
+  advanceKnockout as advance, entryMap, finalOrder, groupRounds, movePlayer, normalizeMatch, resizeSets, scoreTeamTie, scoreText, setsText, setsToWin, setGroupBestOf, setRoundBestOf, standings, uid, validateMatch,
 } from './lib/multisport';
 import { cloudReady, searchPlayers, upsertPlayer, type DbPlayer } from './lib/supabase';
 import type {
@@ -91,7 +91,7 @@ export function TournamentEditor({ initial, onSave, banner, onDelete }: { initia
 
   const closeDetail = () => setDetail(null);
 
-  const titles: Record<View, string> = { dashboard: 'Prehľad turnaja', players: 'Hráči', entries: 'Páry a družstvá', competitions: 'Súťaže', groups: 'Skupiny', results: 'Výsledky skupín', knockout: 'Vyraďovacie pavúky', schedule: 'Stoly a harmonogram', teams: 'Družstvové zápasy', exports: 'Tlač a export' };
+  const titles: Record<View, string> = { dashboard: 'Prehľad turnaja', players: 'Hráči', entries: 'Páry a družstvá', competitions: 'Súťaže', groups: 'Skupiny', results: 'Výsledky skupín', knockout: 'Vyraďovacie pavúky', schedule: 'Stoly a harmonogram', order: 'Konečné poradie', teams: 'Družstvové zápasy', exports: 'Tlač a export' };
 
   return (
     <div className="app-layout">
@@ -113,6 +113,7 @@ export function TournamentEditor({ initial, onSave, banner, onDelete }: { initia
           {view === 'results' && <Results state={state} update={updateComp} label={label} openMatch={setDetail} openCard={(compId, entryId, name) => setCard({ compId, entryId, name })} />}
           {view === 'knockout' && <Knockout state={state} update={updateComp} label={label} openMatch={setDetail} setNotice={setNotice} />}
           {view === 'schedule' && <Schedule state={state} setState={setState} setNotice={setNotice} label={label} />}
+          {view === 'order' && <FinalOrderView state={state} update={updateComp} />}
           {view === 'teams' && <Teams state={state} update={updateComp} label={label} openMatch={setDetail} setNotice={setNotice} />}
           {view === 'exports' && <Exports state={state} setState={setState} label={label} />}
         </div>
@@ -398,6 +399,28 @@ function Exports({ state, setState, label }: { state: TournamentState; setState:
 }
 
 // ============================ ZDIEĽANÉ ============================
+function FinalOrderView({ state, update }: { state: TournamentState; update: (id: string, fn: (c: Competition) => Competition) => void }) {
+  const comps = state.competitions.filter(c => c.type !== 'teams');
+  if (!comps.length) return <Empty title="Žiadne poradie" text="Poradie sa vytvorí z výsledkov skupín a pavúka." />;
+  const exportXlsx = (c: Competition) => {
+    const em = entryMap(c, state.players, state.pairs, state.teams);
+    const rows = finalOrder(c, em).map(r => ({ Umiestnenie: r.placeLabel, Meno: r.entry.name, Klub: r.entry.club, Body: c.points?.[r.placeLabel] ?? '' }));
+    const ws = XLSX.utils.json_to_sheet(rows); const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Poradie'); XLSX.writeFile(wb, `poradie-${c.name}.xlsx`);
+  };
+  return <div className="matches-stack">{comps.map(c => {
+    const em = entryMap(c, state.players, state.pairs, state.teams); const fo = finalOrder(c, em);
+    return <section className="card" key={c.id}>
+      <div className="card-header"><h2>{c.name} — konečné poradie</h2><div className="row-actions"><button className="button" onClick={() => exportXlsx(c)}><FileSpreadsheet size={15} />Excel</button><button className="button" onClick={() => window.print()}><Printer size={15} />Tlač</button></div></div>
+      {fo.length === 0 ? <p className="muted">Poradie sa vytvorí po dohraní skupín a pavúka.</p> :
+        <div className="table-scroll"><table><thead><tr><th>#</th><th>Umiestnenie</th><th>Účastník</th><th>Klub</th><th>Body</th></tr></thead><tbody>
+          {fo.map((r, i) => <tr key={r.entry.id} className={r.place <= 3 ? 'qualified-row' : ''}><td>{i + 1}</td><td><b>{r.placeLabel}</b></td><td><strong>{r.entry.name}</strong></td><td>{r.entry.club}</td>
+            <td><input className="cell-input cell-num" type="number" value={c.points?.[r.placeLabel] ?? ''} placeholder="—" onChange={e => { const v = Number(e.target.value) || 0; update(c.id, x => ({ ...x, points: { ...(x.points || {}), [r.placeLabel]: v } })); }} /></td></tr>)}
+        </tbody></table></div>}
+    </section>;
+  })}</div>;
+}
+
 function Empty({ title, text }: { title: string; text: string }) { return <section className="card page-empty"><h2>{title}</h2><p>{text}</p></section>; }
 
 function MatchRow({ m, label, onClick, compact }: { m: Match; label: (id: string | null) => string; onClick: () => void; compact?: boolean }) {

@@ -4,7 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Trophy, Settings, Link as LinkIcon } from 'lucide-react';
 import { EntryCard } from './components/EntryCard';
 import { getTournament } from './lib/supabase';
-import { TEAM_SYSTEMS, entryMap, groupRounds, scoreText, setsText, standings } from './lib/multisport';
+import { TEAM_SYSTEMS, entryMap, finalOrder, groupRounds, scoreText, setsText, standings } from './lib/multisport';
 import type { Competition, KnockoutRound, Match, TournamentState } from './types';
 import './styles.css';
 
@@ -87,6 +87,10 @@ export function PublicView() {
         </details>}
         {c.ko.main.length > 0 && <><h3 className="bracket-title">Hlavný pavúk</h3>{bracketRounds(c.ko.main)}</>}
         {c.ko.consolation.length > 0 && <><h3 className="bracket-title">Útecha</h3>{bracketRounds(c.ko.consolation)}</>}
+        {(() => { const fo = finalOrder(c, em); return fo.length > 0 ? <details className="pub-rounds"><summary>Konečné poradie</summary>
+          <div className="table-scroll"><table><thead><tr><th>#</th><th>Umiestnenie</th><th>Účastník</th><th>Klub</th>{c.points && <th>Body</th>}</tr></thead><tbody>
+            {fo.map((r, i) => <tr key={r.entry.id} className={r.place <= 3 ? 'qualified-row' : ''}><td>{i + 1}</td><td><b>{r.placeLabel}</b></td><td><strong>{r.entry.name}</strong></td><td>{r.entry.club}</td>{c.points && <td>{c.points[r.placeLabel] ?? ''}</td>}</tr>)}
+          </tbody></table></div></details> : null; })()}
       </section>;
     })}
 
