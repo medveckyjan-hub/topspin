@@ -253,10 +253,10 @@ function Competitions({ state, add, update, remove, setNotice }: { state: Tourna
         <div className="settings-grid">
           <label>Best of (základ)<BestOf value={c.bestOf} onChange={v => update(c.id, x => ({ ...x, bestOf: v }))} /></label>
           {c.type !== 'teams' && <><label>Veľkosť skupiny<select value={c.preferredSize} onChange={e => update(c.id, x => ({ ...x, preferredSize: Number(e.target.value) }))}>{Array.from({ length: 10 }, (_, i) => i + 3).map(x => <option key={x}>{x}</option>)}</select></label>
-            <label>Postupujúci<input type="number" min={1} max={8} value={c.qualifiersPerGroup} onChange={e => update(c.id, x => ({ ...x, qualifiersPerGroup: Number(e.target.value) || 1 }))} /></label>
+            <label>Postupujúci<input type="number" min={0} max={8} value={c.qualifiersPerGroup} onChange={e => update(c.id, x => ({ ...x, qualifiersPerGroup: Math.max(0, Number(e.target.value) || 0) }))} /></label>
             <label className="check"><input type="checkbox" checked={c.thirdPlace} onChange={e => update(c.id, x => ({ ...x, thirdPlace: e.target.checked }))} /> Zápas o 3. miesto</label>
             <label className="check"><input type="checkbox" checked={c.consolation} onChange={e => update(c.id, x => ({ ...x, consolation: e.target.checked }))} /> Útecha (nepostupujúci)</label>
-            <label className="check"><input type="checkbox" checked={c.groupPlayoff} onChange={e => update(c.id, x => ({ ...x, groupPlayoff: e.target.checked }))} /> Play-off skupiny (1‑2 o 1., 3‑4 o 3.)</label></>}
+            <p className="field-hint">Postupujúci = 0 → v skupine sa hrá play‑off (1‑2 o 1. miesto, 3‑4 o 3.). Viac ako 0 → hrá sa vyraďovací pavúk.</p></>}
         </div>
         <h3>Účastníci ({c.entryIds.length})</h3>
         <div className="check-list compact-list">{available.map(e => <label key={e.id}><input type="checkbox" checked={c.entryIds.includes(e.id)} onChange={ev => update(c.id, x => ({ ...x, entryIds: ev.target.checked ? [...x.entryIds, e.id] : x.entryIds.filter(i => i !== e.id) }))} />{e.name}</label>)}</div>
@@ -279,7 +279,7 @@ function Groups({ state, update, setNotice }: { state: TournamentState; update: 
         <select value={g.id} onChange={e => { const chk = canMovePlayer(c.groups, id, e.target.value); if (!chk.ok) { setNotice(chk.message || 'Presun nie je možný.'); return; } update(c.id, x => ({ ...x, groups: movePlayer(x.groups, id, e.target.value), ko: { main: [], consolation: [] } })); }}>
           {c.groups.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
       </div>)}
-      <label className="mini-q">Postupuje: <select value={g.qualifiers} onChange={e => update(c.id, x => ({ ...x, groups: x.groups.map(y => y.id === g.id ? { ...y, qualifiers: Number(e.target.value) } : y) }))}>{Array.from({ length: Math.max(1, g.entryIds.length - 1) }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}</option>)}</select></label>
+      <label className="mini-q">Postupuje: <select value={g.qualifiers} onChange={e => update(c.id, x => ({ ...x, groups: x.groups.map(y => y.id === g.id ? { ...y, qualifiers: Number(e.target.value) } : y) }))}>{Array.from({ length: g.entryIds.length + 1 }, (_, i) => i).map(n => <option key={n} value={n}>{n}</option>)}</select></label>
     </div>)}</div></section>;
   })}</div>;
 }
@@ -305,7 +305,7 @@ function Results({ state, update, label, openMatch, openCard }: { state: Tournam
               {rows.map(r => <tr key={r.entry.id}><td>{r.position}</td><td><strong>{r.entry.name}</strong></td><td><b>{r.matchPoints}</b></td><td>{r.setsFor}:{r.setsAgainst}</td><td>{r.pointsFor}:{r.pointsAgainst}</td></tr>)}
             </tbody></table></div>)}
         </div> : null; })()}
-        {c.groupPlayoff && <div className="playoff-block">
+        {g.qualifiers === 0 && <div className="playoff-block">
           <div className="pb-head"><h3>Play-off skupiny {g.name}</h3><button className="button" onClick={() => update(c.id, x => ({ ...x, groups: x.groups.map(y => y.id === g.id ? { ...y, playoff: createGroupPlayoff(y, em) } : y) }))}>{g.playoff ? 'Obnoviť podľa poradia' : 'Vytvoriť play-off'}</button></div>
           {g.playoff && <div className="pb-matches">
             <div className="pb-match"><span className="pb-label">O 1. miesto</span><MatchRow m={g.playoff.final} label={label} onClick={() => openMatch({ kind: 'playoff', compId: c.id, groupId: g.id, slot: 'final' })} /></div>

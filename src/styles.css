@@ -207,3 +207,4 @@ a.brand:hover{opacity:.85}
 .minitable h4{margin:0 0 8px;font-size:.74rem;font-weight:800;color:#e62834;text-transform:uppercase;letter-spacing:.04em}
 .minitable table{width:100%}
 .minitable td,.minitable th{padding:5px 8px;font-size:.82rem}
+.field-hint{grid-column:1/-1;margin:2px 0 0;font-size:.78rem;color:#7b8798;line-height:1.4}

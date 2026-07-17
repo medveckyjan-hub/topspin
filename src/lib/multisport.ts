@@ -153,7 +153,7 @@ export function createGroups(entries: GenericEntry[], pref: number, bestOf: 3 | 
     buckets[idx].push(e);
     idx += dir; if (idx >= buckets.length) { idx = buckets.length - 1; dir = -1; } if (idx < 0) { idx = 0; dir = 1; }
   }
-  return buckets.map((b, i) => ({ id: uid(), name: `Skupina ${String.fromCharCode(65 + i)}`, entryIds: b.map(x => x.id), matches: generateRoundRobin(b.map(x => x.id), bestOf), qualifiers: Math.min(q, Math.max(1, b.length - 1)), bestOf }));
+  return buckets.map((b, i) => ({ id: uid(), name: `Skupina ${String.fromCharCode(65 + i)}`, entryIds: b.map(x => x.id), matches: generateRoundRobin(b.map(x => x.id), bestOf), qualifiers: Math.max(0, Math.min(q, b.length - 1)), bestOf }));
 }
 
 export function canMovePlayer(groups: TournamentGroup[], entryId: string, targetId: string) {
@@ -169,7 +169,7 @@ export function movePlayer(groups: TournamentGroup[], entryId: string, targetId:
   return groups.map(g => {
     if (!g.entryIds.includes(entryId) && g.id !== targetId) return g;
     const ids = g.id === targetId ? [...g.entryIds, entryId] : g.entryIds.filter(i => i !== entryId);
-    return { ...g, entryIds: ids, matches: generateRoundRobin(ids, g.bestOf), qualifiers: Math.min(g.qualifiers, Math.max(1, ids.length - 1)) };
+    return { ...g, entryIds: ids, matches: generateRoundRobin(ids, g.bestOf), qualifiers: Math.max(0, Math.min(g.qualifiers, ids.length - 1)) };
   });
 }
 
@@ -440,7 +440,14 @@ export function createGroupPlayoff(group: TournamentGroup, map: Map<string, Gene
  *  nepostupujúci zo skupín zoradení podľa umiestnenia v skupine (vetvené po miestach). */
 export function finalOrder(c: Competition, map: Map<string, GenericEntry>): FinalRow[] {
   const groupPos = new Map<string, number>();
-  c.groups.forEach(g => standings(g, map).forEach(r => groupPos.set(r.entry.id, r.position)));
+  const wl = (m?: Match | null): [string | null, string | null] => (m && m.winnerId ? [m.winnerId, m.winnerId === m.playerAId ? m.playerBId : m.playerAId] : [null, null]);
+  c.groups.forEach(g => {
+    standings(g, map).forEach(r => groupPos.set(r.entry.id, r.position));
+    if (g.playoff) {
+      const [fw, fl] = wl(g.playoff.final); if (fw) groupPos.set(fw, 1); if (fl) groupPos.set(fl, 2);
+      const [tw, tl] = wl(g.playoff.third); if (tw) groupPos.set(tw, 3); if (tl) groupPos.set(tl, 4);
+    }
+  });
   const rows: FinalRow[] = [];
   const placed = new Set<string>();
   const put = (id: string | null, place: number, label: string) => { if (!id) return; const e = map.get(id); if (e && !placed.has(id)) { rows.push({ entry: e, place, placeLabel: label }); placed.add(id); } };
