@@ -4,7 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Trophy, Settings, Link as LinkIcon } from 'lucide-react';
 import { EntryCard } from './components/EntryCard';
 import { getTournament } from './lib/supabase';
-import { TEAM_SYSTEMS, entryMap, finalOrder, groupRounds, scoreText, setsText, standings } from './lib/multisport';
+import { TEAM_SYSTEMS, entryMap, finalOrder, groupRounds, scoreText, setsText, standings, tieTables } from './lib/multisport';
 import type { Competition, KnockoutRound, Match, TournamentState } from './types';
 import './styles.css';
 
@@ -74,6 +74,12 @@ export function PublicView() {
           <div className="table-scroll"><table><thead><tr><th>#</th><th>Účastník</th><th>V</th><th>P</th><th>B</th><th>Sety</th><th>Lopt.</th></tr></thead><tbody>
             {standings(g, em).map(r => <tr key={r.entry.id} className={r.qualified ? 'qualified-row' : ''}><td>{r.position}</td><td><strong className="clickable-name" onClick={() => setCard({ comp: c, entryId: r.entry.id, name: r.entry.name })}>{r.entry.name}</strong></td><td>{r.wins}</td><td>{r.losses}</td><td><b>{r.matchPoints}</b></td><td>{r.setsFor}:{r.setsAgainst}</td><td>{r.pointsFor}:{r.pointsAgainst}</td></tr>)}
           </tbody></table></div>
+          {(() => { const tts = tieTables(g, em); return tts.length > 0 ? <div className="minitables">
+            {tts.map((rows, k) => <div className="minitable" key={k}><h4>Minitabuľka pri rovnosti</h4>
+              <table><thead><tr><th>#</th><th>Účastník</th><th>Body</th><th>Sety</th><th>Lopt.</th></tr></thead><tbody>
+                {rows.map(r => <tr key={r.entry.id}><td>{r.position}</td><td><strong>{r.entry.name}</strong></td><td><b>{r.matchPoints}</b></td><td>{r.setsFor}:{r.setsAgainst}</td><td>{r.pointsFor}:{r.pointsAgainst}</td></tr>)}
+              </tbody></table></div>)}
+          </div> : null; })()}
           <div className="pub-matches">{g.matches.filter(m => m.winnerId).map(m => <PubMatch key={m.id} m={m} label={label} />)}</div>
           {g.playoff && <div className="pub-playoff"><h4>Play-off skupiny</h4>
             <div className="pub-matches"><div className="pub-po-row"><span className="pb-label">O 1. miesto</span><PubMatch m={g.playoff.final} label={label} /></div>

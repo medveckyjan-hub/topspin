@@ -201,3 +201,9 @@ a.brand:hover{opacity:.85}
 .pub-po-row{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}
 .auto-refresh{display:inline-block;margin-top:6px;font-size:.72rem;font-weight:700;color:#8a95a4}
 .row-actions{display:flex;gap:8px}
+/* minitabuľky pri rovnosti */
+.minitables{display:grid;gap:10px;margin-top:12px}
+.minitable{border:1px dashed #d6dde5;border-radius:12px;padding:10px 12px;background:#fafbfc}
+.minitable h4{margin:0 0 8px;font-size:.74rem;font-weight:800;color:#e62834;text-transform:uppercase;letter-spacing:.04em}
+.minitable table{width:100%}
+.minitable td,.minitable th{padding:5px 8px;font-size:.82rem}

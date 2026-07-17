@@ -5,7 +5,7 @@ import { Sidebar } from './components/Sidebar';
 import { EntryCard } from './components/EntryCard';
 import {
   TEAM_SYSTEMS, applySubstitution, autoSchedule, buildTeamTie, canMovePlayer, createGroupPlayoff, createGroups, createKnockout,
-  advanceKnockout as advance, entryMap, finalOrder, groupRounds, movePlayer, normalizeMatch, resizeSets, scoreTeamTie, scoreText, setsText, setsToWin, setGroupBestOf, setRoundBestOf, standings, uid, validateMatch,
+  advanceKnockout as advance, entryMap, finalOrder, groupRounds, movePlayer, normalizeMatch, resizeSets, scoreTeamTie, scoreText, setsText, setsToWin, setGroupBestOf, setRoundBestOf, standings, tieTables, uid, validateMatch,
 } from './lib/multisport';
 import { cloudReady, searchPlayers, upsertPlayer, type DbPlayer } from './lib/supabase';
 import type {
@@ -299,6 +299,12 @@ function Results({ state, update, label, openMatch, openCard }: { state: Tournam
           {st.map(r => <tr key={r.entry.id} className={r.qualified ? 'qualified-row' : ''}><td>{r.position}</td><td><strong className="clickable-name" onClick={() => openCard(c.id, r.entry.id, r.entry.name)}>{r.entry.name}</strong>{r.tieNote ? <small className="tie"> · {r.tieNote}</small> : ''}</td><td>{r.played}</td><td>{r.wins}</td><td>{r.losses}</td><td><b>{r.matchPoints}</b></td><td>{r.setsFor}:{r.setsAgainst}</td><td>{r.pointsFor}:{r.pointsAgainst}</td></tr>)}
         </tbody></table></div></div>
         </div>
+        {(() => { const tts = tieTables(g, em); return tts.length > 0 ? <div className="minitables">
+          {tts.map((rows, k) => <div className="minitable" key={k}><h4>Minitabuľka pri rovnosti — vzájomné zápasy</h4>
+            <table><thead><tr><th>#</th><th>Účastník</th><th>Body</th><th>Sety</th><th>Lopt.</th></tr></thead><tbody>
+              {rows.map(r => <tr key={r.entry.id}><td>{r.position}</td><td><strong>{r.entry.name}</strong></td><td><b>{r.matchPoints}</b></td><td>{r.setsFor}:{r.setsAgainst}</td><td>{r.pointsFor}:{r.pointsAgainst}</td></tr>)}
+            </tbody></table></div>)}
+        </div> : null; })()}
         {c.groupPlayoff && <div className="playoff-block">
           <div className="pb-head"><h3>Play-off skupiny {g.name}</h3><button className="button" onClick={() => update(c.id, x => ({ ...x, groups: x.groups.map(y => y.id === g.id ? { ...y, playoff: createGroupPlayoff(y, em) } : y) }))}>{g.playoff ? 'Obnoviť podľa poradia' : 'Vytvoriť play-off'}</button></div>
           {g.playoff && <div className="pb-matches">

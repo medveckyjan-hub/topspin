@@ -182,7 +182,7 @@ export function setGroupBestOf(g: TournamentGroup, bestOf: 3 | 5 | 7): Tournamen
 const ratio = (a: number, b: number) => (b === 0 ? (a > 0 ? Number.POSITIVE_INFINITY : 0) : a / b);
 type Row = StandingRow;
 
-function statsFor(entries: GenericEntry[], matches: Match[]): Row[] {
+export function statsFor(entries: GenericEntry[], matches: Match[]): Row[] {
   const rows: Row[] = entries.map(entry => ({ entry, played: 0, wins: 0, losses: 0, matchPoints: 0, setsFor: 0, setsAgainst: 0, pointsFor: 0, pointsAgainst: 0, position: 0, qualified: false, tieNote: '' }));
   const map = new Map(rows.map(r => [r.entry.id, r]));
   for (const m of matches) {
@@ -473,4 +473,28 @@ export function finalOrder(c: Competition, map: Map<string, GenericEntry>): Fina
     base = end;
   });
   return rows.sort((a, b) => a.place - b.place);
+}
+
+/** Minitabuľky pri rovnosti bodov: pre každú skupinu hráčov s rovnakými bodmi vráti
+ *  ich vzájomnú tabuľku (len zápasy medzi nimi), zoradenú tak, ako sa rovnosť rozhodla. */
+export function tieTables(group: TournamentGroup, map: Map<string, GenericEntry>): StandingRow[][] {
+  const full = standings(group, map);
+  const out: StandingRow[][] = [];
+  for (let i = 0; i < full.length;) {
+    let j = i + 1;
+    while (j < full.length && full[j].matchPoints === full[i].matchPoints) j++;
+    if (j - i >= 2) {
+      const slice = full.slice(i, j);
+      const ids = new Set(slice.map(r => r.entry.id));
+      const mini = group.matches.filter(m => m.playerAId && m.playerBId && ids.has(m.playerAId) && ids.has(m.playerBId));
+      if (mini.some(m => m.winnerId)) {
+        const order = new Map(slice.map((r, idx) => [r.entry.id, idx]));
+        const rows = statsFor(slice.map(r => r.entry), mini).sort((a, b) => order.get(a.entry.id)! - order.get(b.entry.id)!);
+        rows.forEach((r, idx) => { r.position = slice[idx].position; });
+        out.push(rows);
+      }
+    }
+    i = j;
+  }
+  return out;
 }
