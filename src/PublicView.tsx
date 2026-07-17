@@ -15,7 +15,22 @@ export function PublicView() {
   const [state, setState] = useState<'load' | 'ok' | 'missing'>('load');
   const [card, setCard] = useState<{ comp: Competition; entryId: string; name: string } | null>(null);
 
-  useEffect(() => { (async () => { try { const t = await getTournament(slug); if (t) { setData(t.data); setName(t.name); setState('ok'); } else setState('missing'); } catch { setState('missing'); } })(); }, [slug]);
+  useEffect(() => {
+    let alive = true;
+    const load = async (first: boolean) => {
+      try {
+        const t = await getTournament(slug);
+        if (!alive) return;
+        if (t) { setData(t.data); setName(t.name); setState('ok'); }
+        else if (first) setState('missing');
+      } catch { if (first && alive) setState('missing'); }
+    };
+    load(true);
+    const id = setInterval(() => load(false), 30000);
+    const onVis = () => { if (document.visibilityState === 'visible') load(false); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { alive = false; clearInterval(id); document.removeEventListener('visibilitychange', onVis); };
+  }, [slug]);
   const url = typeof window !== 'undefined' ? `${window.location.origin}/t/${slug}` : '';
 
   const label = useMemo(() => {
@@ -36,7 +51,7 @@ export function PublicView() {
 
   return <Shell>
     <div className="pub-head">
-      <div><span className="kicker">Výsledky turnaja</span><h1>{name}</h1><p>{data.settings.date}{data.settings.venue ? ` · ${data.settings.venue}` : ''}</p></div>
+      <div><span className="kicker">Výsledky turnaja</span><h1>{name}</h1><p>{data.settings.date}{data.settings.venue ? ` · ${data.settings.venue}` : ''}</p><span className="auto-refresh">↻ Výsledky sa obnovujú automaticky</span></div>
       <div className="pub-qr"><QRCodeSVG value={url} size={104} /><button className="link-btn" onClick={() => navigator.clipboard?.writeText(url)}><LinkIcon size={13} />Kopírovať odkaz</button></div>
     </div>
 

@@ -199,3 +199,4 @@ a.brand:hover{opacity:.85}
 .pub-playoff{margin-top:10px;border-top:1px dashed #e4e9ee;padding-top:8px}
 .pub-playoff h4{margin:0 0 6px;color:#e62834;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em}
 .pub-po-row{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}
+.auto-refresh{display:inline-block;margin-top:6px;font-size:.72rem;font-weight:700;color:#8a95a4}
