@@ -116,7 +116,7 @@ function ScoreSheet({ row, onClose, onSave }: { row: Row; onClose: () => void; o
   const num = (v: number | null) => v ?? 0;
   const bump = (i: number, side: 'a' | 'b', d: number) =>
     setSets(cur => cur.map((s, j) => (j === i ? { ...s, [side]: Math.max(0, num(side === 'a' ? s.a : s.b) + d) } : s)));
-  const won = sets.reduce((acc, s) => {
+  const won = sets.reduce<{ a: number; b: number }>((acc, s) => {
     const a = num(s.a), b = num(s.b);
     if (a > b) acc.a++; else if (b > a) acc.b++;
     return acc;
