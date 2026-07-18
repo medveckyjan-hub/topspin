@@ -5,6 +5,7 @@ import { getTournament } from './lib/supabase';
 import { entryMap, scoreText, standings } from './lib/multisport';
 import type { Competition, Match, TournamentState } from './types';
 import './styles.css';
+import { skDate } from './lib/format';
 
 type Slide =
   | { kind: 'live'; }
@@ -94,7 +95,7 @@ export function TvView() {
 
   return <div className="tv">
     <header className="tv-top">
-      <div className="tv-brand"><img src="/topspin.png" alt="TOPSPIN" /><div><strong>{name}</strong><span>{data.settings.venue || data.settings.date}</span></div></div>
+      <div className="tv-brand"><img src="/topspin.png" alt="TOPSPIN" /><div><strong>{name}</strong><span>{data.settings.venue || skDate(data.settings.date)}</span></div></div>
       <div className="tv-right">
         <div className="tv-qr"><QRCodeSVG value={url} size={78} /><span>Výsledky online</span></div>
         <div className="tv-clock">{clock.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' })}</div>

@@ -1,5 +1,6 @@
 import { entryMap, finalOrder, groupRounds, scoreText, standings } from './multisport';
 import type { Competition, GenericEntry, Match, TournamentState } from '../types';
+import { skDate } from './format';
 
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
 
@@ -48,7 +49,7 @@ function openDoc(title: string, kind: string, state: TournamentState, body: stri
   <body>
     <div class="noprint"><button onclick="window.print()">Tlačiť / uložiť ako PDF</button></div>
     <header class="doc">
-      <div><h1>${esc(s.name)}</h1><p>${esc(s.date)}${s.venue ? ' · ' + esc(s.venue) : ''}</p></div>
+      <div><h1>${esc(s.name)}</h1><p>${esc(skDate(s.date))}${s.venue ? ' · ' + esc(s.venue) : ''}</p></div>
       <div class="doc-kind">${esc(kind)}</div>
     </header>
     ${body}

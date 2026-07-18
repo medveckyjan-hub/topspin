@@ -4,8 +4,8 @@ import { listHistory, restoreHistory, type HistoryEntry } from '../lib/supabase'
 import type { TournamentState } from '../types';
 
 /** História uložení — posledných 50 verzií, s možnosťou vrátiť sa späť. */
-export function HistoryPanel({ slug, pin, onRestore }: {
-  slug: string; pin: string; onRestore: (s: TournamentState) => void;
+export function HistoryPanel({ slug, onRestore }: {
+  slug: string; onRestore: (s: TournamentState) => void;
 }) {
   const [rows, setRows] = useState<HistoryEntry[]>([]);
   const [err, setErr] = useState('');
@@ -13,7 +13,7 @@ export function HistoryPanel({ slug, pin, onRestore }: {
 
   const load = async () => {
     setErr('');
-    try { setRows(await listHistory(slug, pin)); }
+    try { setRows(await listHistory(slug)); }
     catch (e) { setErr((e as Error).message); }
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [slug]);
@@ -21,7 +21,7 @@ export function HistoryPanel({ slug, pin, onRestore }: {
   const back = async (h: HistoryEntry) => {
     if (!confirm(`Vrátiť turnaj do stavu z ${new Date(h.saved_at).toLocaleString('sk-SK')}? Aktuálny stav sa najprv odloží do histórie, takže sa vieš vrátiť späť.`)) return;
     setBusy(true);
-    try { onRestore(await restoreHistory(slug, pin, h.id)); await load(); }
+    try { onRestore(await restoreHistory(slug, h.id)); await load(); }
     catch (e) { alert((e as Error).message); }
     setBusy(false);
   };

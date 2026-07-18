@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { Settings, Link as LinkIcon, Eye, UserPlus, FileText, Images, Video, Plus, GitBranch, Users, Medal, CalendarClock } from 'lucide-react';
+import { Settings, Link as LinkIcon, UserPlus, FileText, Images, Video, Plus, Trophy, CalendarClock } from 'lucide-react';
 import { EntryCard } from './components/EntryCard';
 import { GroupTable } from './components/GroupTable';
 import { MatchOverview, type Side } from './components/MatchOverview';
@@ -10,6 +10,7 @@ import { RegistrationForm } from './components/RegistrationForm';
 import { TEAM_SYSTEMS, entryMap, finalOrder, groupRounds, scoreText, setsText, standings, tieTables } from './lib/multisport';
 import type { Competition, GenericEntry, KnockoutRound, Match, TournamentState } from './types';
 import './styles.css';
+import { skDate } from './lib/format';
 
 export function PublicView() {
   const { slug = '' } = useParams();
@@ -18,7 +19,8 @@ export function PublicView() {
   const [state, setState] = useState<'load' | 'ok' | 'missing'>('load');
   const [card, setCard] = useState<{ comp: Competition; entryId: string; name: string } | null>(null);
   const [mo, setMo] = useState<{ comp: Competition; em: Map<string, GenericEntry>; m: Match; event: string; groupName?: string; matchNo?: string } | null>(null);
-  const [tab, setTab] = useState<'prehlad' | 'playoff' | 'ucastnici' | 'poradie' | 'harmonogram' | 'registracia' | 'propozicie' | 'galeria' | 'videa'>('prehlad');
+  const [tab, setTab] = useState<string>('');   // '' = prvá kategória, inak id súťaže alebo 'harmonogram'/'registracia'/...
+  const [sec, setSec] = useState<'zoznam' | 'skupiny' | 'playoff' | 'pavuk' | 'poradie'>('skupiny');
   const [regs, setRegs] = useState<Registration[]>([]);
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [regOpen, setRegOpen] = useState(false);
@@ -76,8 +78,16 @@ export function PublicView() {
     };
   }, [data]);
 
+  const defaultSection = (c: Competition): 'zoznam' | 'skupiny' | 'playoff' | 'pavuk' | 'poradie' =>
+    (c.groups.length ? 'skupiny' : c.ko.main.length ? 'pavuk' : 'zoznam');
+
   if (state === 'load') return <Shell><p className="muted">Načítavam…</p></Shell>;
   if (state === 'missing' || !data) return <Shell><h2>Turnaj sa nenašiel</h2><Link className="button" to="/">Domov</Link></Shell>;
+
+  const EXTRA = ['harmonogram', 'registracia', 'propozicie', 'galeria', 'videa'];
+  const activeComp: Competition | undefined = EXTRA.includes(tab)
+    ? undefined
+    : (data.competitions.find(c => c.id === tab) ?? data.competitions[0]);
 
   const bracketRounds = (rounds: KnockoutRound[], c: Competition, em: Map<string, GenericEntry>) => {
     const main = rounds.filter(r => r.kind !== 'third');
@@ -103,7 +113,7 @@ export function PublicView() {
 
   return <Shell>
     <div className="pub-head">
-      <div><span className="kicker">Výsledky turnaja</span><h1>{name}</h1><p>{data.settings.date}{data.settings.venue ? ` · ${data.settings.venue}` : ''}</p><span className="auto-refresh">↻ Výsledky sa obnovujú automaticky</span></div>
+      <div><span className="kicker">Výsledky turnaja</span><h1>{name}</h1><p>{skDate(data.settings.date)}{data.settings.venue ? ` · ${data.settings.venue}` : ''}</p><span className="auto-refresh">↻ Výsledky sa obnovujú automaticky</span></div>
       <div className="pub-qr"><QRCodeSVG value={url} size={104} /><button className="link-btn" onClick={() => navigator.clipboard?.writeText(url)}><LinkIcon size={13} />Kopírovať odkaz</button></div>
     </div>
 
@@ -111,19 +121,19 @@ export function PublicView() {
       const props = media.filter(x => x.kind === 'propozicie');
       const photos = media.filter(x => x.kind === 'photo');
       const vids = media.filter(x => x.kind === 'video');
-      const tabs: [typeof tab, string, React.ReactNode, boolean][] = [
-        ['prehlad', 'Skupiny a pavúk', <Eye size={15} key="i" />, true],
-        ['playoff', 'Play-off', <GitBranch size={15} key="i" />, data.competitions.some(c => c.groups.some(g => g.playoff))],
-        ['ucastnici', 'Účastníci', <Users size={15} key="i" />, data.competitions.some(c => c.entryIds.length > 0)],
-        ['poradie', 'Konečné poradie', <Medal size={15} key="i" />, data.competitions.some(c => finalOrder(c, entryMap(c, data.players, data.pairs, data.teams)).length > 0)],
+      const extra: [string, string, React.ReactNode, boolean][] = [
         ['harmonogram', 'Harmonogram', <CalendarClock size={15} key="i" />, hasSchedule(data.competitions)],
         ['registracia', 'Registrácia', <UserPlus size={15} key="i" />, true],
         ['propozicie', 'Propozície', <FileText size={15} key="i" />, props.length > 0],
         ['galeria', 'Galéria', <Images size={15} key="i" />, photos.length > 0],
         ['videa', 'Videá', <Video size={15} key="i" />, vids.length > 0],
       ];
-      return <nav className="pub-tabs">{tabs.filter(t => t[3]).map(([k, lbl, ic]) =>
-        <button key={k} className={`pub-tab${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>{ic}{lbl}</button>)}</nav>;
+      return <nav className="pub-tabs">
+        {data.competitions.map(c => <button key={c.id} className={`pub-tab${activeComp?.id === c.id ? ' active' : ''}`}
+          onClick={() => { setTab(c.id); setSec(defaultSection(c)); }}><Trophy size={15} />{c.name}</button>)}
+        {extra.filter(t => t[3]).map(([k, lbl, ic]) =>
+          <button key={k} className={`pub-tab${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>{ic}{lbl}</button>)}
+      </nav>;
     })()}
 
     {tab === 'registracia' && <section className="card pub-card">
@@ -135,7 +145,7 @@ export function PublicView() {
           <span className="reg-n"><em>#</em>{i + 1}</span>
           <div className="reg-who"><strong>{r.first_name} {r.last_name}</strong><span>{r.club || '—'}</span></div>
           <div className="reg-meta"><span className="reg-cap">Krajina</span>{r.country}</div>
-          <div className="reg-meta"><span className="reg-cap">Rok nar. / licencia</span>{r.birth_year ?? '—'} / {r.license_until ? new Date(r.license_until).toLocaleDateString('sk-SK') : '-'}</div>
+          <div className="reg-meta"><span className="reg-cap">Rok nar. / licencia</span>{r.birth_year ?? '—'} / {r.license_until ? skDate(r.license_until) : '-'}</div>
           {r.categories?.length > 0 && <div className="reg-meta reg-cats-view"><span className="reg-cap">Kategórie</span>{r.categories.join(', ')}</div>}
         </div>)}</div>}
     </section>}
@@ -156,11 +166,25 @@ export function PublicView() {
         <div className="vid-frame"><iframe src={embedUrl(x.url)} title={x.title || 'Video'} allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture" allowFullScreen loading="lazy" /></div></div>)}</div>
     </section>}
 
-    {tab === 'prehlad' && data.competitions.length === 0 && <p className="muted">Turnaj sa pripravuje.</p>}
+    {activeComp && data.competitions.length === 0 && <p className="muted">Turnaj sa pripravuje.</p>}
 
-    {tab === 'prehlad' && data.competitions.map(c => {
+    {activeComp && (() => {
+      const c = activeComp;
       const em = entryMap(c, data.players, data.pairs, data.teams);
-      if (c.type === 'teams') return <section className="card pub-card" key={c.id}>
+      const hasPo = c.groups.some(g => g.playoff);
+      const hasKo = c.ko.main.length > 0;
+      const fo = finalOrder(c, em);
+      const secs: [typeof sec, string, boolean][] = [
+        ['zoznam', 'Zoznam hráčov', c.entryIds.length > 0],
+        ['skupiny', 'Skupiny', c.groups.length > 0 || !!c.finalGroup],
+        ['playoff', 'Play-off 1‑2 / 3‑4', hasPo],
+        ['pavuk', 'Pavúk — K.O.', hasKo],
+        ['poradie', 'Poradie', fo.length > 0],
+      ];
+      const avail = secs.filter(x => x[2]);
+      const cur = avail.some(x => x[0] === sec) ? sec : (avail[0]?.[0] ?? 'zoznam');
+
+      if (c.type === 'teams') return <section className="card pub-card">
         <h2>{c.name} · {TEAM_SYSTEMS[c.teamSystemId || 'CORBILLON'].name}</h2>
         {c.teamTies.map(t => { const home = data.teams.find(x => x.id === t.homeTeamId), away = data.teams.find(x => x.id === t.awayTeamId); return <div className="pub-tie" key={t.id}>
           <div className="pub-tie-head"><strong>{home?.name}</strong><b>{t.homeScore} : {t.awayScore}</b><strong>{away?.name}</strong></div>
@@ -168,83 +192,62 @@ export function PublicView() {
         </div>; })}
       </section>;
 
-      return <section className="card pub-card" key={c.id}>
-        <h2>{c.name}</h2>
-        {(() => {
-          const fg = c.finalGroup;
-          const bracket = c.ko.main.length > 0 ? <><h3 className="bracket-title">Hlavný pavúk</h3>{bracketRounds(c.ko.main, c, em)}</> : null;
-          const finalG = fg ? <div className="pub-group pub-decisive" key={fg.id}>
-            <h3>{fg.name} <span className="decisive-tag">určuje poradie</span></h3>
-            <GroupTable group={fg} map={em} players={data.players}
-              onName={e => setCard({ comp: c, entryId: e.id, name: e.name })}
-              onMatch={(m, sa, sb) => setMo({ comp: c, em, m, event: 'Finálová skupina', groupName: fg.name, matchNo: `${sa} - ${sb}` })} />
-            <div className="pub-matches">{fg.matches.filter(m => m.winnerId).map(m => <PubMatch key={m.id} m={m} label={label} em={em} onClick={() => setMo({ comp: c, em, m, event: 'Finálová skupina', groupName: fg.name })} />)}</div>
-          </div> : null;
-          const po = c.groups.filter(g => g.playoff);
-          const playoff = po.length > 0 ? <div className="pub-group pub-decisive">
-            <h3>Play-off skupín <span className="decisive-tag">určuje poradie</span></h3>
-            {po.map(g => <div className="pub-playoff" key={g.id}><h4>{g.name}</h4>
-              <div className="pub-matches">
-                <div className="pub-po-row"><span className="pb-label">O 1. miesto</span>
-                  <PubMatch m={g.playoff!.final} label={label} em={em} onClick={() => setMo({ comp: c, em, m: g.playoff!.final, event: 'Play-off · o 1. miesto', groupName: g.name })} /></div>
-                {g.playoff!.third && <div className="pub-po-row"><span className="pb-label">O 3. miesto</span>
-                  <PubMatch m={g.playoff!.third!} label={label} em={em} onClick={() => setMo({ comp: c, em, m: g.playoff!.third!, event: 'Play-off · o 3. miesto', groupName: g.name })} /></div>}
-              </div></div>)}
-          </div> : null;
-          return <>{finalG}{!finalG && bracket}{playoff}</>;
+      return <section className="card pub-card">
+        <div className="comp-head"><h2>{c.name}</h2>
+          {avail.length > 1 && <nav className="sec-tabs">{avail.map(([k, lbl]) =>
+            <button key={k} className={`sec-tab${cur === k ? ' active' : ''}`} onClick={() => setSec(k)}>{lbl}</button>)}</nav>}
+        </div>
+
+        {cur === 'zoznam' && (() => {
+          const list = c.entryIds.map(id => em.get(id)).filter(Boolean);
+          return <div className="table-scroll"><table><thead><tr><th>#</th><th>Účastník</th><th>Klub</th></tr></thead><tbody>
+            {list.map((e, i) => <tr key={e!.id}><td>{i + 1}</td>
+              <td><strong className="clickable-name" onClick={() => setCard({ comp: c, entryId: e!.id, name: e!.name })}>{e!.name}</strong></td>
+              <td>{e!.club || '—'}</td></tr>)}
+          </tbody></table></div>;
         })()}
-        {c.groups.map(g => <div className="pub-group" key={g.id}>
-          <h3>{g.name}</h3>
-          <GroupTable group={g} map={em} players={data.players}
-            onName={e => setCard({ comp: c, entryId: e.id, name: e.name })}
-            onMatch={(m, sa, sb) => setMo({ comp: c, em, m, event: 'Skupiny', groupName: g.name, matchNo: `${sa} - ${sb}` })} />
-          {(() => { const tts = tieTables(g, em); return tts.length > 0 ? <div className="minitables">
-            {tts.map((rows, k) => <div className="minitable" key={k}><h4>Minitabuľka pri rovnosti</h4>
-              <table><thead><tr><th>#</th><th>Účastník</th><th>Body</th><th>Sety</th><th>Lopt.</th></tr></thead><tbody>
-                {rows.map(r => <tr key={r.entry.id}><td>{r.position}</td><td><strong>{r.entry.name}</strong></td><td><b>{r.matchPoints}</b></td><td>{r.setsFor}:{r.setsAgainst}</td><td>{r.pointsFor}:{r.pointsAgainst}</td></tr>)}
-              </tbody></table></div>)}
-          </div> : null; })()}
-          <div className="pub-matches">{g.matches.filter(m => m.winnerId).map(m => <PubMatch key={m.id} m={m} label={label} em={em} onClick={() => setMo({ comp: c, em, m, event: 'Skupiny', groupName: g.name })} />)}</div>
 
-        </div>)}
-        {c.finalGroup && c.ko.main.length > 0 && <><h3 className="bracket-title">Hlavný pavúk</h3>{bracketRounds(c.ko.main, c, em)}</>}
-        {c.ko.consolation.length > 0 && <><h3 className="bracket-title">Útecha</h3>{bracketRounds(c.ko.consolation, c, em)}</>}
+        {cur === 'skupiny' && <>
+          {c.finalGroup && <div className="pub-group pub-decisive">
+            <h3>{c.finalGroup.name} <span className="decisive-tag">určuje poradie</span></h3>
+            <GroupTable group={c.finalGroup} map={em} players={data.players}
+              onName={e => setCard({ comp: c, entryId: e.id, name: e.name })}
+              onMatch={(m, sa, sb) => setMo({ comp: c, em, m, event: 'Finálová skupina', groupName: c.finalGroup!.name, matchNo: `${sa} - ${sb}` })} />
+            <div className="pub-matches">{c.finalGroup.matches.filter(m => m.winnerId).map(m => <PubMatch key={m.id} m={m} label={label} em={em} onClick={() => setMo({ comp: c, em, m, event: 'Finálová skupina', groupName: c.finalGroup!.name })} />)}</div>
+          </div>}
+          {c.groups.map(g => <div className="pub-group" key={g.id}>
+            <h3>{g.name}</h3>
+            <GroupTable group={g} map={em} players={data.players}
+              onName={e => setCard({ comp: c, entryId: e.id, name: e.name })}
+              onMatch={(m, sa, sb) => setMo({ comp: c, em, m, event: 'Skupiny', groupName: g.name, matchNo: `${sa} - ${sb}` })} />
+            {(() => { const tts = tieTables(g, em); return tts.length > 0 ? <div className="minitables">
+              {tts.map((rows, k) => <div className="minitable" key={k}><h4>Minitabuľka pri rovnosti</h4>
+                <table><thead><tr><th>#</th><th>Účastník</th><th>Body</th><th>Sety</th><th>Lopt.</th></tr></thead><tbody>
+                  {rows.map(r => <tr key={r.entry.id}><td>{r.position}</td><td><strong>{r.entry.name}</strong></td><td><b>{r.matchPoints}</b></td><td>{r.setsFor}:{r.setsAgainst}</td><td>{r.pointsFor}:{r.pointsAgainst}</td></tr>)}
+                </tbody></table></div>)}
+            </div> : null; })()}
+            <div className="pub-matches">{g.matches.filter(m => m.winnerId).map(m => <PubMatch key={m.id} m={m} label={label} em={em} onClick={() => setMo({ comp: c, em, m, event: 'Skupiny', groupName: g.name })} />)}</div>
+          </div>)}
+        </>}
 
-      </section>;
-    })}
-
-    {tab === 'playoff' && data.competitions.filter(c => c.groups.some(g => g.playoff)).map(c => {
-      const em = entryMap(c, data.players, data.pairs, data.teams);
-      const lab = (id: string | null) => (id ? em.get(id)?.name || '—' : '—');
-      return <section className="card pub-card" key={c.id}><h2>{c.name} — play-off skupín</h2>
-        {c.groups.filter(g => g.playoff).map(g => <div className="pub-playoff" key={g.id}><h4>{g.name}</h4>
+        {cur === 'playoff' && c.groups.filter(g => g.playoff).map(g => <div className="pub-playoff" key={g.id}><h4>{g.name}</h4>
           <div className="pub-matches">
-            <div className="pub-po-row"><span className="pb-label">O 1. miesto</span><PubMatch m={g.playoff!.final} label={lab} em={em} onClick={() => setMo({ comp: c, em, m: g.playoff!.final, event: 'Play-off · o 1. miesto', groupName: g.name })} /></div>
-            {g.playoff!.third && <div className="pub-po-row"><span className="pb-label">O 3. miesto</span><PubMatch m={g.playoff!.third!} label={lab} em={em} onClick={() => setMo({ comp: c, em, m: g.playoff!.third!, event: 'Play-off · o 3. miesto', groupName: g.name })} /></div>}
+            <div className="pub-po-row"><span className="pb-label">O 1. miesto</span>
+              <PubMatch m={g.playoff!.final} label={label} em={em} onClick={() => setMo({ comp: c, em, m: g.playoff!.final, event: 'Play-off · o 1. miesto', groupName: g.name })} /></div>
+            {g.playoff!.third && <div className="pub-po-row"><span className="pb-label">O 3. miesto</span>
+              <PubMatch m={g.playoff!.third!} label={label} em={em} onClick={() => setMo({ comp: c, em, m: g.playoff!.third!, event: 'Play-off · o 3. miesto', groupName: g.name })} /></div>}
           </div></div>)}
-      </section>;
-    })}
 
-    {tab === 'ucastnici' && data.competitions.filter(c => c.entryIds.length > 0).map(c => {
-      const em = entryMap(c, data.players, data.pairs, data.teams);
-      const list = c.entryIds.map(id => em.get(id)).filter(Boolean);
-      return <section className="card pub-card" key={c.id}><h2>{c.name} — účastníci ({list.length})</h2>
-        <div className="table-scroll"><table><thead><tr><th>#</th><th>Účastník</th><th>Klub</th></tr></thead><tbody>
-          {list.map((e, i) => <tr key={e!.id}><td>{i + 1}</td>
-            <td><strong className="clickable-name" onClick={() => setCard({ comp: c, entryId: e!.id, name: e!.name })}>{e!.name}</strong></td>
-            <td>{e!.club || '—'}</td></tr>)}
-        </tbody></table></div></section>;
-    })}
+        {cur === 'pavuk' && <>
+          {bracketRounds(c.ko.main, c, em)}
+          {c.ko.consolation.length > 0 && <><h3 className="bracket-title">Útecha</h3>{bracketRounds(c.ko.consolation, c, em)}</>}
+        </>}
 
-    {tab === 'poradie' && data.competitions.map(c => {
-      const em = entryMap(c, data.players, data.pairs, data.teams);
-      const fo = finalOrder(c, em);
-      if (!fo.length) return null;
-      return <section className="card pub-card" key={c.id}><h2>{c.name} — konečné poradie</h2>
-        <div className="table-scroll"><table><thead><tr><th>#</th><th>Umiestnenie</th><th>Účastník</th><th>Klub</th>{c.points && <th>Body</th>}</tr></thead><tbody>
+        {cur === 'poradie' && <div className="table-scroll"><table><thead><tr><th>#</th><th>Umiestnenie</th><th>Účastník</th><th>Klub</th>{c.points && <th>Body</th>}</tr></thead><tbody>
           {fo.map((r, i) => <tr key={r.entry.id} className={r.place <= 3 ? 'qualified-row' : ''}><td>{i + 1}</td><td><b>{r.placeLabel}</b></td><td><strong>{r.entry.name}</strong></td><td>{r.entry.club}</td>{c.points && <td>{c.points[r.placeLabel] ?? ''}</td>}</tr>)}
-        </tbody></table></div></section>;
-    })}
+        </tbody></table></div>}
+      </section>;
+    })()}
 
     {tab === 'harmonogram' && (() => {
       const rows = data.competitions.flatMap(c => {
@@ -271,13 +274,6 @@ export function PublicView() {
           </div>)}
       </section>;
     })()}
-
-    {false && hasSchedule(data.competitions) && <section className="card pub-card"><h2>Harmonogram</h2>
-      <div className="table-scroll"><table><thead><tr><th>Čas</th><th>Stôl</th><th>Súťaž</th><th>Zápas</th></tr></thead><tbody>
-        {data.competitions.flatMap(c => c.groups.flatMap(g => g.matches.filter(m => m.scheduledTime).map(m => ({ c, m }))))
-          .sort((a, b) => (a.m.scheduledTime || '').localeCompare(b.m.scheduledTime || ''))
-          .map(({ c, m }) => <tr key={m.id}><td>{m.scheduledTime}</td><td>{m.table ?? '—'}</td><td>{c.name}</td><td>{label(m.playerAId)} – {label(m.playerBId)}</td></tr>)}
-      </tbody></table></div></section>}
 
     <div className="pub-foot"><Link className="button" to={`/t/${slug}/admin`}><Settings size={16} />Spravovať (PIN)</Link></div>
     {mo && (() => { const A = mo.em.get(mo.m.playerAId || ''), B = mo.em.get(mo.m.playerBId || '');

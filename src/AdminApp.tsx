@@ -3,7 +3,8 @@ import { useParams, useLocation, Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { Lock, Trophy, Link as LinkIcon, Eye, RotateCcw, Save, Home } from 'lucide-react';
 import { TournamentEditor } from './App';
-import { deleteTournament, getTournament, isConflict, saveTournament, verifyPin } from './lib/supabase';
+import { deleteTournament, getTournament, isConflict, saveTournament, signOut, type Session } from './lib/supabase';
+import { AuthGate } from './components/AuthGate';
 import type { TournamentState } from './types';
 import './styles.css';
 
@@ -14,10 +15,13 @@ const writeBackup = (slug: string, data: TournamentState) => { try { localStorag
 
 export function AdminApp() {
   const { slug = '' } = useParams();
+  return <AuthGate slug={slug}>{s => <AdminInner session={s} />}</AuthGate>;
+}
+
+function AdminInner({ session }: { session: Session }) {
+  const { slug = '' } = useParams();
   const loc = useLocation();
-  const navPin = (loc.state as { pin?: string } | null)?.pin;
-  const [pin, setPin] = useState(navPin || '');
-  const [unlocked, setUnlocked] = useState(false);
+  const [unlocked, setUnlocked] = useState(true);
   const [initial, setInitial] = useState<TournamentState | null>(null);
   const [seed, setSeed] = useState(0);
   const [name, setName] = useState('');
@@ -33,7 +37,7 @@ export function AdminApp() {
   const nav = useNavigate();
   const removeTournament = async () => {
     if (!confirm('Naozaj nezvratne zmazať celý turnaj vrátane výsledkov?')) return;
-    try { await deleteTournament(slug, pin); try { localStorage.removeItem(backupKey(slug)); } catch { /* ignore */ } nav('/'); }
+    try { await deleteTournament(slug); try { localStorage.removeItem(backupKey(slug)); } catch { /* ignore */ } nav('/'); }
     catch (e) { alert('Zmazanie zlyhalo: ' + (e as Error).message); }
   };
 
@@ -53,7 +57,7 @@ export function AdminApp() {
   const pushCloud = async (s: TournamentState) => {
     setSaveState('saving');
     try {
-      version.current = await saveTournament(slug, s, pin, version.current || undefined);
+      version.current = await saveTournament(slug, s, version.current || undefined);
       lastPushed.current = JSON.stringify(s); setSaveState('saved'); setStale(false);
     } catch (e) {
       if (isConflict(e)) { setStale(true); setSaveState('idle'); }   // neprepisujeme cudzie zmeny
@@ -122,5 +126,5 @@ export function AdminApp() {
     <span className="mini-qr"><QRCodeSVG value={url} size={40} /></span>
   </div>;
 
-  return initial ? <TournamentEditor key={seed} initial={initial} onSave={save} banner={banner} onDelete={removeTournament} slug={slug} pin={pin} /> : null;
+  return initial ? <TournamentEditor key={seed} initial={initial} onSave={save} banner={banner} onDelete={removeTournament} slug={slug} /> : null;
 }

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Check, ChevronLeft, Lock, Minus, Plus, RefreshCw } from 'lucide-react';
-import { getTournament, isConflict, saveTournament, verifyPin } from './lib/supabase';
+import { getTournament, isConflict, saveTournament } from './lib/supabase';
+import { AuthGate } from './components/AuthGate';
 import { entryMap, normalizeMatch, scoreText, setsToWin } from './lib/multisport';
 import type { Competition, Match, TournamentState } from './types';
 import './styles.css';
@@ -17,10 +18,12 @@ type Row = { slot: Slot; comp: Competition; phase: string; m: Match; bestOf: num
  *  Vyberie si svoj stôl a zapisuje sety veľkými tlačidlami. */
 export function TableView() {
   const { slug = '' } = useParams();
-  const [pin, setPin] = useState('');
-  const [entry, setEntry] = useState('');
-  const [unlocked, setUnlocked] = useState(false);
-  const [err, setErr] = useState('');
+  return <AuthGate slug={slug} note="Prihlás sa e-mailom, ktorý ti pridal organizátor turnaja.">{() => <TableInner />}</AuthGate>;
+}
+
+function TableInner() {
+  const { slug = '' } = useParams();
+  const [unlocked] = useState(true);
   const [data, setData] = useState<TournamentState | null>(null);
   const [table, setTable] = useState<number | 'all'>('all');
   const [open, setOpen] = useState<Row | null>(null);
@@ -31,15 +34,6 @@ export function TableView() {
     try { const t = await getTournament(slug); if (t) { setData(t.data); version.current = t.version; } } catch { /* ponechaj */ }
   };
   useEffect(() => { if (unlocked) { load(); const id = setInterval(load, 25000); return () => clearInterval(id); } }, [unlocked, slug]);
-
-  const unlock = async () => {
-    setErr('');
-    try {
-      const ok = await verifyPin(slug, entry);
-      if (!ok) { setErr('Nesprávny PIN.'); return; }
-      setPin(entry); setUnlocked(true);
-    } catch (e) { setErr((e as Error).message); }
-  };
 
   const rows = useMemo<Row[]>(() => {
     if (!data) return [];
@@ -81,19 +75,9 @@ export function TableView() {
     }
     setData(next);
     setState('saving');
-    try { version.current = await saveTournament(slug, next, pin, version.current || undefined); setState('saved'); }
+    try { version.current = await saveTournament(slug, next, version.current || undefined); setState('saved'); }
     catch (e) { if (isConflict(e)) { setState('conflict'); await load(); } else setState('error'); }
   };
-
-  if (!unlocked) return <div className="tbl-shell"><div className="tbl-lock">
-    <img src="/topspin.png" alt="TOPSPIN" />
-    <h1>Zapisovanie od stola</h1>
-    <p>Zadaj PIN turnaja. Zapisovať môžeš len výsledky, nastavenia turnaja ostávajú organizátorovi.</p>
-    <input placeholder="PIN" type="password" value={entry} onChange={e => setEntry(e.target.value)} onKeyDown={e => e.key === 'Enter' && unlock()} />
-    <button className="button primary" onClick={unlock}><Lock size={16} />Vstúpiť</button>
-    {err && <p className="match-error">{err}</p>}
-    <Link className="link-btn" to={`/t/${slug}`}>Verejné výsledky</Link>
-  </div></div>;
 
   if (open) return <ScoreSheet row={open} onClose={() => setOpen(null)} onSave={(m) => { applyMatch(open, m); setOpen(null); }} />;
 

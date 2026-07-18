@@ -25,11 +25,12 @@ export async function getTournament(slug: string): Promise<{ name: string; slug:
 }
 
 /** Založenie turnaja – gated tajným admin kódom; vracia slug. */
-export async function createTournament(name: string, pin: string, createCode: string): Promise<string> {
-  const { data, error } = await supabase.rpc('topspin_create_tournament', { p_name: name, p_pin: pin, p_create_code: createCode });
+export async function createTournament(name: string): Promise<string> {
+  const { data, error } = await supabase.rpc('topspin_create_tournament', { p_name: name });
   if (error) throw error;
   return data as string;
 }
+
 
 /** Overenie PIN pre admin prístup k turnaju. */
 export async function verifyPin(slug: string, pin: string): Promise<boolean> {
@@ -41,9 +42,9 @@ export async function verifyPin(slug: string, pin: string): Promise<boolean> {
 /** Uloženie stavu turnaja – server overí PIN. */
 /** Uloženie s kontrolou verzie. Ak medzitým uložil niekto iný, server vráti CONFLICT
  *  a my zmeny neprepíšeme. Vracia novú verziu. */
-export async function saveTournament(slug: string, data: TournamentState, pin: string, version?: number): Promise<number> {
+export async function saveTournament(slug: string, data: TournamentState, version?: number): Promise<number> {
   const { data: res, error } = await supabase.rpc('topspin_save_tournament', {
-    p_slug: slug, p_data: data, p_pin: pin, ...(version != null ? { p_version: version } : {}),
+    p_slug: slug, p_data: data, ...(version != null ? { p_version: version } : {}),
   });
   if (error) throw error;
   return Number(res ?? 0);
@@ -54,14 +55,14 @@ export const isConflict = (e: unknown): boolean => String((e as Error)?.message 
 // ---------- História zmien ----------
 export type HistoryEntry = { id: number; version: number; saved_at: string };
 
-export async function listHistory(slug: string, pin: string): Promise<HistoryEntry[]> {
-  const { data, error } = await supabase.rpc('topspin_history_list', { p_slug: slug, p_pin: pin });
+export async function listHistory(slug: string): Promise<HistoryEntry[]> {
+  const { data, error } = await supabase.rpc('topspin_history_list', { p_slug: slug });
   if (error) throw error;
   return (data ?? []) as HistoryEntry[];
 }
 
-export async function restoreHistory(slug: string, pin: string, id: number): Promise<TournamentState> {
-  const { data, error } = await supabase.rpc('topspin_history_restore', { p_slug: slug, p_pin: pin, p_id: id });
+export async function restoreHistory(slug: string, id: number): Promise<TournamentState> {
+  const { data, error } = await supabase.rpc('topspin_history_restore', { p_slug: slug, p_id: id });
   if (error) throw error;
   return data as TournamentState;
 }
@@ -74,14 +75,14 @@ export async function getRegistrationState(slug: string): Promise<{ reg_open: bo
   return { reg_open: row?.reg_open ?? true, reg_deadline: row?.reg_deadline ?? null };
 }
 
-export async function setRegistrationState(slug: string, pin: string, open: boolean, deadline: string | null): Promise<void> {
-  const { error } = await supabase.rpc('topspin_set_registration', { p_slug: slug, p_pin: pin, p_open: open, p_deadline: deadline });
+export async function setRegistrationState(slug: string, open: boolean, deadline: string | null): Promise<void> {
+  const { error } = await supabase.rpc('topspin_set_registration', { p_slug: slug, p_open: open, p_deadline: deadline });
   if (error) throw error;
 }
 
 /** Zmazanie turnaja – server overí PIN. */
-export async function deleteTournament(slug: string, pin: string): Promise<void> {
-  const { error } = await supabase.rpc('topspin_delete_tournament', { p_slug: slug, p_pin: pin });
+export async function deleteTournament(slug: string): Promise<void> {
+  const { error } = await supabase.rpc('topspin_delete_tournament', { p_slug: slug });
   if (error) throw error;
 }
 
@@ -132,14 +133,14 @@ export async function registerPlayer(slug: string, r: RegistrationInput): Promis
   if (error) throw error;
 }
 
-export async function listRegistrationsAdmin(slug: string, pin: string): Promise<Registration[]> {
-  const { data, error } = await supabase.rpc('topspin_registrations_admin', { p_slug: slug, p_pin: pin });
+export async function listRegistrationsAdmin(slug: string): Promise<Registration[]> {
+  const { data, error } = await supabase.rpc('topspin_registrations_admin', { p_slug: slug });
   if (error) throw error;
   return (data ?? []) as Registration[];
 }
 
-export async function deleteRegistration(slug: string, pin: string, id: string): Promise<void> {
-  const { error } = await supabase.rpc('topspin_delete_registration', { p_slug: slug, p_pin: pin, p_id: id });
+export async function deleteRegistration(slug: string, id: string): Promise<void> {
+  const { error } = await supabase.rpc('topspin_delete_registration', { p_slug: slug, p_id: id });
   if (error) throw error;
 }
 
@@ -153,33 +154,26 @@ export async function listMedia(slug: string): Promise<MediaItem[]> {
   return (data ?? []) as MediaItem[];
 }
 
-export async function addMedia(slug: string, pin: string, kind: MediaKind, url: string, title: string): Promise<void> {
-  const { error } = await supabase.rpc('topspin_add_media', { p_slug: slug, p_pin: pin, p_kind: kind, p_url: url, p_title: title });
+export async function addMedia(slug: string, kind: MediaKind, url: string, title: string): Promise<void> {
+  const { error } = await supabase.rpc('topspin_add_media', { p_slug: slug, p_kind: kind, p_url: url, p_title: title });
   if (error) throw error;
 }
 
-export async function deleteMedia(slug: string, pin: string, id: string): Promise<void> {
-  const { error } = await supabase.rpc('topspin_delete_media', { p_slug: slug, p_pin: pin, p_id: id });
+export async function deleteMedia(slug: string, id: string): Promise<void> {
+  const { error } = await supabase.rpc('topspin_delete_media', { p_slug: slug, p_id: id });
   if (error) throw error;
 }
 
 /** Nahrá súbor do Supabase Storage a vráti verejnú adresu.
  *  Súbory sú mimo turnajového JSON, takže turnaj ostáva rýchly. */
-export async function uploadMedia(slug: string, file: File, pin: string): Promise<string> {
-  const base64 = await new Promise<string>((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(String(r.result).split(',')[1]);
-    r.onerror = () => rej(new Error('Súbor sa nepodarilo prečítať.'));
-    r.readAsDataURL(file);
-  });
-  const r = await fetch('/.netlify/functions/upload', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ slug, pin, filename: file.name, contentType: file.type || 'application/octet-stream', data: base64 }),
-  });
-  const out = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(out.error || `Nahranie zlyhalo (${r.status}).`);
-  return out.url as string;
+export async function uploadMedia(slug: string, file: File): Promise<string> {
+  const clean = file.name.replace(/[^A-Za-z0-9._-]+/g, '_').slice(-60);
+  const path = slug + '/' + Date.now() + '_' + clean;
+  const { error } = await supabase.storage.from('topspin-media').upload(path, file, { cacheControl: '3600', upsert: false });
+  if (error) throw error;
+  return supabase.storage.from('topspin-media').getPublicUrl(path).data.publicUrl;
 }
+
 
 /** YouTube/Vimeo odkaz → adresa na vloženie do stránky. */
 export function embedUrl(url: string): string {
@@ -191,7 +185,74 @@ export function embedUrl(url: string): string {
 }
 
 /** Prezencia a zaplatené štartovné. */
-export async function setRegistrationFlags(slug: string, pin: string, id: string, checked: boolean | null, paid: boolean | null): Promise<void> {
-  const { error } = await supabase.rpc('topspin_set_registration_flags', { p_slug: slug, p_pin: pin, p_id: id, p_checked: checked, p_paid: paid });
+export async function setRegistrationFlags(slug: string, id: string, checked: boolean | null, paid: boolean | null): Promise<void> {
+  const { error } = await supabase.rpc('topspin_set_registration_flags', { p_slug: slug, p_id: id, p_checked: checked, p_paid: paid });
+  if (error) throw error;
+}
+
+// ================= Prihlásenie e-mailom =================
+export type Session = { email: string; userId: string } | null;
+
+export async function getSession(): Promise<Session> {
+  const { data } = await supabase.auth.getSession();
+  const u = data.session?.user;
+  return u ? { email: u.email || '', userId: u.id } : null;
+}
+
+export function onAuth(cb: (s: Session) => void): () => void {
+  const { data } = supabase.auth.onAuthStateChange((_e, sess) => {
+    const u = sess?.user;
+    cb(u ? { email: u.email || '', userId: u.id } : null);
+  });
+  return () => data.subscription.unsubscribe();
+}
+
+/** Pošle prihlasovací odkaz na e-mail (bez hesla). */
+export async function sendLoginLink(email: string, redirectTo?: string): Promise<void> {
+  const { error } = await supabase.auth.signInWithOtp({
+    email: email.trim(),
+    options: { emailRedirectTo: redirectTo || window.location.href },
+  });
+  if (error) throw error;
+}
+
+export async function signOut(): Promise<void> { await supabase.auth.signOut(); }
+
+/** Turnaje, ku ktorým má prihlásený používateľ prístup. */
+export async function myTournaments(): Promise<{ slug: string; name: string; updated_at: string; role: string }[]> {
+  const { data, error } = await supabase.rpc('topspin_my_tournaments');
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Má prihlásený používateľ právo upravovať tento turnaj? */
+export async function canEdit(slug: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('topspin_can_edit', { p_slug: slug });
+  if (error) return false;
+  return data === true;
+}
+
+/** Jednorazové prevzatie staršieho turnaja pomocou pôvodného PINu. */
+export async function claimTournament(slug: string, pin: string): Promise<void> {
+  const { error } = await supabase.rpc('topspin_claim_tournament', { p_slug: slug, p_pin: pin });
+  if (error) throw error;
+}
+
+// ---------- pozvaní používatelia ----------
+export type AccessRow = { email: string; role: string; created_at: string };
+
+export async function listAccess(slug: string): Promise<AccessRow[]> {
+  const { data, error } = await supabase.rpc('topspin_list_access', { p_slug: slug });
+  if (error) throw error;
+  return (data ?? []) as AccessRow[];
+}
+
+export async function addAccess(slug: string, email: string, role: string): Promise<void> {
+  const { error } = await supabase.rpc('topspin_add_access', { p_slug: slug, p_email: email, p_role: role });
+  if (error) throw error;
+}
+
+export async function removeAccess(slug: string, email: string): Promise<void> {
+  const { error } = await supabase.rpc('topspin_remove_access', { p_slug: slug, p_email: email });
   if (error) throw error;
 }

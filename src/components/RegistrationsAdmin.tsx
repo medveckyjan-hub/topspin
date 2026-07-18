@@ -6,13 +6,14 @@ import {
   type MediaItem, type MediaKind, type Registration,
 } from '../lib/supabase';
 import type { Player, TournamentState } from '../types';
+import { skDate } from '../lib/format';
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 /** Organizátorská správa registrácií a médií. Súbory idú do Supabase Storage,
  *  v turnaji sa neukladajú — stránka tak ostáva rýchla. */
-export function RegistrationsAdmin({ slug, pin, state, setState, setNotice }: {
-  slug: string; pin: string; state: TournamentState;
+export function RegistrationsAdmin({ slug, state, setState, setNotice }: {
+  slug: string; state: TournamentState;
   setState: React.Dispatch<React.SetStateAction<TournamentState>>;
   setNotice: (s: string) => void;
 }) {
@@ -27,19 +28,19 @@ export function RegistrationsAdmin({ slug, pin, state, setState, setNotice }: {
 
   const load = async () => {
     setErr('');
-    try { setRegs(await listRegistrationsAdmin(slug, pin)); } catch (e) { setErr((e as Error).message); }
+    try { setRegs(await listRegistrationsAdmin(slug)); } catch (e) { setErr((e as Error).message); }
     try { setMedia(await listMedia(slug)); } catch { /* ignore */ }
     try { const st = await getRegistrationState(slug); setRegOpen(st.reg_open); setDeadline(st.reg_deadline ? st.reg_deadline.slice(0, 16) : ''); } catch { /* ignore */ }
   };
 
   const saveRegState = async (open: boolean, dl: string) => {
     setRegOpen(open); setDeadline(dl);
-    try { await setRegistrationState(slug, pin, open, dl ? new Date(dl).toISOString() : null); }
+    try { await setRegistrationState(slug, open, dl ? new Date(dl).toISOString() : null); }
     catch (e) { alert((e as Error).message); }
   };
   const flag = async (r: Registration, checked: boolean | null, paid: boolean | null) => {
     setRegs(cur => cur.map(x => x.id === r.id ? { ...x, checked_in: checked ?? x.checked_in, paid: paid ?? x.paid } : x));
-    try { await setRegistrationFlags(slug, pin, r.id, checked, paid); } catch (e) { alert((e as Error).message); load(); }
+    try { await setRegistrationFlags(slug, r.id, checked, paid); } catch (e) { alert((e as Error).message); load(); }
   };
   /** Pridá prihláseného rovno do súťaží, ktoré si pri registrácii vybral. */
   const addToCompetitions = (r: Registration) => {
@@ -75,13 +76,13 @@ export function RegistrationsAdmin({ slug, pin, state, setState, setNotice }: {
   };
   const removeReg = async (id: string) => {
     if (!confirm('Zmazať túto prihlášku?')) return;
-    try { await deleteRegistration(slug, pin, id); load(); } catch (e) { alert((e as Error).message); }
+    try { await deleteRegistration(slug, id); load(); } catch (e) { alert((e as Error).message); }
   };
 
   const upload = async (file: File | undefined, kind: MediaKind, title: string) => {
     if (!file) return;
     setBusy(kind);
-    try { const url = await uploadMedia(slug, file, pin); await addMedia(slug, pin, kind, url, title || file.name); await load(); }
+    try { const url = await uploadMedia(slug, file); await addMedia(slug, kind, url, title || file.name); await load(); }
     catch (e) { alert('Nahranie zlyhalo: ' + (e as Error).message); }
     setBusy('');
   };
@@ -89,18 +90,18 @@ export function RegistrationsAdmin({ slug, pin, state, setState, setNotice }: {
     if (!files?.length) return;
     setBusy('photo');
     for (const f of Array.from(files)) {
-      try { const url = await uploadMedia(slug, f, pin); await addMedia(slug, pin, 'photo', url, f.name); } catch { /* ignore */ }
+      try { const url = await uploadMedia(slug, f); await addMedia(slug, 'photo', url, f.name); } catch { /* ignore */ }
     }
     await load(); setBusy('');
   };
   const addVideo = async () => {
     if (!videoUrl.trim()) return;
-    try { await addMedia(slug, pin, 'video', videoUrl.trim(), videoTitle.trim()); setVideoUrl(''); setVideoTitle(''); load(); }
+    try { await addMedia(slug, 'video', videoUrl.trim(), videoTitle.trim()); setVideoUrl(''); setVideoTitle(''); load(); }
     catch (e) { alert((e as Error).message); }
   };
   const removeMedia = async (id: string) => {
     if (!confirm('Zmazať túto položku?')) return;
-    try { await deleteMedia(slug, pin, id); load(); } catch (e) { alert((e as Error).message); }
+    try { await deleteMedia(slug, id); load(); } catch (e) { alert((e as Error).message); }
   };
 
   const props = media.filter(m => m.kind === 'propozicie');
@@ -121,7 +122,7 @@ export function RegistrationsAdmin({ slug, pin, state, setState, setNotice }: {
         <div className="table-scroll"><table><thead><tr><th>#</th><th>Meno</th><th>Klub</th><th>Rok</th><th>Licencia</th><th>Poh.</th><th>Kategórie</th><th>Prez.</th><th>Zapl.</th><th>E-mail</th><th /></tr></thead><tbody>
           {regs.map((r, i) => <tr key={r.id}><td>{i + 1}</td>
             <td><strong>{r.first_name} {r.last_name}</strong></td><td>{r.club || '—'}</td>
-            <td>{r.birth_year ?? '—'}</td><td>{r.license_until ? new Date(r.license_until).toLocaleDateString('sk-SK') : '—'}</td>
+            <td>{r.birth_year ?? '—'}</td><td>{r.license_until ? skDate(r.license_until) : '—'}</td>
             <td>{r.gender}</td><td>{r.categories?.join(', ') || '—'}</td>
             <td><input type="checkbox" checked={!!r.checked_in} onChange={e => flag(r, e.target.checked, null)} /></td>
             <td><input type="checkbox" checked={!!r.paid} onChange={e => flag(r, null, e.target.checked)} /></td>

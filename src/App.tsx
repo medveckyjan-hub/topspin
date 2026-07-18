@@ -9,6 +9,7 @@ import {
 } from './lib/multisport';
 import { cloudReady, listPlayers, searchPlayers, upsertPlayer, type DbPlayer } from './lib/supabase';
 import { GroupTable } from './components/GroupTable';
+import { skDate } from './lib/format';
 import { printBracket, printDraw, printEntries, printFinalOrder, printMatchSheets, printSchedule, printStandings } from './lib/print';
 import { RegistrationsAdmin } from './components/RegistrationsAdmin';
 import { HistoryPanel } from './components/HistoryPanel';
@@ -32,7 +33,7 @@ type Detail =
   | { kind: 'playoff'; compId: string; groupId: string; slot: 'final' | 'third' }
   | { kind: 'final'; compId: string; matchId: string };
 
-export function TournamentEditor({ initial, onSave, banner, onDelete, slug, pin }: { initial: TournamentState; onSave: (s: TournamentState) => void; banner?: React.ReactNode; onDelete?: () => void; slug?: string; pin?: string }) {
+export function TournamentEditor({ initial, onSave, banner, onDelete, slug }: { initial: TournamentState; onSave: (s: TournamentState) => void; banner?: React.ReactNode; onDelete?: () => void; slug?: string }) {
   const [state, setState] = useState<TournamentState>(initial);
   const [view, setView] = useState<View>('dashboard');
   const [open, setOpen] = useState(false);
@@ -122,12 +123,12 @@ export function TournamentEditor({ initial, onSave, banner, onDelete, slug, pin 
           {view === 'schedule' && <Schedule state={state} setState={setState} setNotice={setNotice} label={label} />}
           {view === 'order' && <FinalOrderView state={state} update={updateComp} />}
           {view === 'database' && <PlayerDatabase state={state} setState={setState} setNotice={setNotice} />}
-          {view === 'history' && (slug && pin
-            ? <HistoryPanel slug={slug} pin={pin} onRestore={st => { setState(st); setNotice('Turnaj bol vrátený na staršiu verziu.'); }} />
-            : <Empty title="História zmien" text="História je dostupná po prihlásení cez PIN (adresa /t/…/admin)." />)}
-          {view === 'registration' && (slug && pin
-            ? <RegistrationsAdmin slug={slug} pin={pin} state={state} setState={setState} setNotice={setNotice} />
-            : <Empty title="Registrácia" text="Registrácie a médiá sú dostupné po prihlásení do turnaja cez PIN (adresa /t/…/admin)." />)}
+          {view === 'history' && (slug
+            ? <HistoryPanel slug={slug} onRestore={st => { setState(st); setNotice('Turnaj bol vrátený na staršiu verziu.'); }} />
+            : <Empty title="História zmien" text="História je dostupná po prihlásení (adresa /t/…/admin)." />)}
+          {view === 'registration' && (slug
+            ? <RegistrationsAdmin slug={slug} state={state} setState={setState} setNotice={setNotice} />
+            : <Empty title="Registrácia" text="Registrácie a médiá sú dostupné po prihlásení (adresa /t/…/admin)." />)}
           {view === 'teams' && <Teams state={state} update={updateComp} label={label} openMatch={setDetail} setNotice={setNotice} />}
           {view === 'exports' && <Exports state={state} setState={setState} label={label} />}
         </div>

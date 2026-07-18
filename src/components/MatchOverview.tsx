@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import type { Match } from '../types';
+import { skDateTime } from '../lib/format';
 
 export type Side = { name: string; club: string; photo?: string };
 
@@ -32,7 +33,7 @@ export function MatchOverview({ tournament, competition, event, groupName, date,
       <div><span>Kategória:</span> {competition}</div>
       <div><span>Udalosť:</span> {event}</div>
       {groupName && <div><span>Skupina:</span> {groupName}</div>}
-      {date && <div><span>Dátum:</span> {date}{m.scheduledTime ? ` ${m.scheduledTime}` : ''}</div>}
+      {date && <div><span>Dátum:</span> {skDateTime(date, m.scheduledTime)}</div>}
       {matchNo && <div><span>Zápas:</span> {matchNo}</div>}
       {table != null && <div><span>Stôl:</span> {table}</div>}
     </div>
