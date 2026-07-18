@@ -53,6 +53,34 @@ export const TEAM_SYSTEMS: Record<TeamSystemId, TeamSystem> = {
     { order: 5, kind: 'singles', homeSlot: 'A', awaySlot: 'Y', label: 'A – Y' },
     { order: 6, kind: 'singles', homeSlot: 'B', awaySlot: 'Z', label: 'B – Z' },
     { order: 7, kind: 'singles', homeSlot: 'C', awaySlot: 'X', label: 'C – X' }] },
+  TEAM2_4S: { id: 'TEAM2_4S', name: 'Dvojčlenné družstvá (4 dvojhry + štvorhra)', rosterMin: 2, rosterMax: 4, activePlayers: 2, winTarget: 3, allowOneSubstitution: true, rubbers: [
+    { order: 1, kind: 'singles', homeSlot: 'A', awaySlot: 'X', label: 'A – X' },
+    { order: 2, kind: 'singles', homeSlot: 'B', awaySlot: 'Y', label: 'B – Y' },
+    { order: 3, kind: 'singles', homeSlot: 'A', awaySlot: 'Y', label: 'A – Y' },
+    { order: 4, kind: 'singles', homeSlot: 'B', awaySlot: 'X', label: 'B – X' },
+    { order: 5, kind: 'doubles', homeSlot: 'AB', awaySlot: 'XY', label: 'Štvorhra' }] },
+  TEAM3_5S: { id: 'TEAM3_5S', name: 'Trojčlenné družstvá 3 vs. 3 (5 dvojhier)', rosterMin: 3, rosterMax: 5, activePlayers: 3, winTarget: 3, allowOneSubstitution: true, rubbers: [
+    { order: 1, kind: 'singles', homeSlot: 'A', awaySlot: 'X', label: 'A – X' },
+    { order: 2, kind: 'singles', homeSlot: 'B', awaySlot: 'Y', label: 'B – Y' },
+    { order: 3, kind: 'singles', homeSlot: 'C', awaySlot: 'Z', label: 'C – Z' },
+    { order: 4, kind: 'singles', homeSlot: 'A', awaySlot: 'Y', label: 'A – Y' },
+    { order: 5, kind: 'singles', homeSlot: 'B', awaySlot: 'X', label: 'B – X' }] },
+  TEAM3_9S: { id: 'TEAM3_9S', name: 'Trojčlenné družstvá 3 vs. 3 (9 dvojhier)', rosterMin: 3, rosterMax: 5, activePlayers: 3, winTarget: 5, allowOneSubstitution: true, rubbers: [
+    { order: 1, kind: 'singles', homeSlot: 'A', awaySlot: 'X', label: 'A – X' },
+    { order: 2, kind: 'singles', homeSlot: 'B', awaySlot: 'Y', label: 'B – Y' },
+    { order: 3, kind: 'singles', homeSlot: 'C', awaySlot: 'Z', label: 'C – Z' },
+    { order: 4, kind: 'singles', homeSlot: 'A', awaySlot: 'Y', label: 'A – Y' },
+    { order: 5, kind: 'singles', homeSlot: 'B', awaySlot: 'X', label: 'B – X' },
+    { order: 6, kind: 'singles', homeSlot: 'C', awaySlot: 'X', label: 'C – X' },
+    { order: 7, kind: 'singles', homeSlot: 'A', awaySlot: 'Z', label: 'A – Z' },
+    { order: 8, kind: 'singles', homeSlot: 'B', awaySlot: 'Z', label: 'B – Z' },
+    { order: 9, kind: 'singles', homeSlot: 'C', awaySlot: 'Y', label: 'C – Y' }] },
+  MIXED_TEAM: { id: 'MIXED_TEAM', name: 'Zmiešané družstvá (chlapec + dievča)', rosterMin: 2, rosterMax: 4, activePlayers: 2, winTarget: 3, allowOneSubstitution: true, rubbers: [
+    { order: 1, kind: 'singles', homeSlot: 'A', awaySlot: 'X', label: 'Chlapci: A – X' },
+    { order: 2, kind: 'singles', homeSlot: 'B', awaySlot: 'Y', label: 'Dievčatá: B – Y' },
+    { order: 3, kind: 'doubles', homeSlot: 'AB', awaySlot: 'XY', label: 'Zmiešaná štvorhra' },
+    { order: 4, kind: 'singles', homeSlot: 'A', awaySlot: 'Y', label: 'A – Y' },
+    { order: 5, kind: 'singles', homeSlot: 'B', awaySlot: 'X', label: 'B – X' }] },
   CUSTOM: { id: 'CUSTOM', name: 'Vlastný systém', rosterMin: 2, rosterMax: 4, activePlayers: 2, winTarget: 3, allowOneSubstitution: true, rubbers: [
     { order: 1, kind: 'singles', homeSlot: 'A', awaySlot: 'X', label: 'A – X' }] },
 };
@@ -336,24 +364,64 @@ export function setRoundBestOf(round: KnockoutRound, bestOf: 3 | 5 | 7): Knockou
 }
 
 // ============================ HARMONOGRAM ============================
-export function autoSchedule(competitions: Competition[], tables: number, start = '09:00', matchMinutes = 25, restMinutes = 15): Competition[] {
+export type SchedulePhase = 'all' | 'groups' | 'playoff' | 'ko';
+
+/** Automatický rozpis času a stolov. Plánuje skupiny, play-off skupín aj vyraďovacie pavúky.
+ *  Zohľadňuje voľné stoly aj oddych hráča medzi zápasmi; kolá pavúka idú za sebou. */
+export function autoSchedule(competitions: Competition[], tables: number, start = '09:00', matchMinutes = 20, restMinutes = 5, phase: SchedulePhase = 'all'): Competition[] {
   const [h, min] = start.split(':').map(Number);
-  const tableFree = Array(Math.max(1, tables)).fill(h * 60 + min);
+  const base = (h || 0) * 60 + (min || 0);
+  const tableFree = Array(Math.max(1, tables)).fill(base);
   const busy = new Map<string, number>();
   const copy: Competition[] = structuredClone(competitions);
-  const all = copy.flatMap(c => c.groups.flatMap(g => g.matches.map(m => ({ m })))).sort((a, b) => a.m.round - b.m.round);
-  for (const { m } of all) {
-    if (!m.playerAId || !m.playerBId) continue;
+  const hhmm = (t: number) => `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+
+  const place = (m: Match, notBefore: number): number => {
     let bestTable = 0, bestStart = Infinity;
     for (let t = 0; t < tableFree.length; t++) {
-      const ready = Math.max(tableFree[t], busy.get(m.playerAId) ?? 0, busy.get(m.playerBId) ?? 0);
+      const ready = Math.max(tableFree[t], notBefore, busy.get(m.playerAId ?? '') ?? 0, busy.get(m.playerBId ?? '') ?? 0);
       if (ready < bestStart) { bestStart = ready; bestTable = t; }
     }
     m.table = bestTable + 1;
-    m.scheduledTime = `${String(Math.floor(bestStart / 60) % 24).padStart(2, '0')}:${String(bestStart % 60).padStart(2, '0')}`;
-    tableFree[bestTable] = bestStart + matchMinutes;
-    busy.set(m.playerAId, bestStart + matchMinutes + restMinutes);
-    busy.set(m.playerBId, bestStart + matchMinutes + restMinutes);
+    m.scheduledTime = hhmm(bestStart);
+    const end = bestStart + matchMinutes;
+    tableFree[bestTable] = end;
+    if (m.playerAId) busy.set(m.playerAId, end + restMinutes);
+    if (m.playerBId) busy.set(m.playerBId, end + restMinutes);
+    return end;
+  };
+  const clear = (m: Match) => { m.table = undefined; m.scheduledTime = undefined; };
+
+  const doGroups = phase === 'all' || phase === 'groups';
+  const doPlayoff = phase === 'all' || phase === 'playoff';
+  const doKo = phase === 'all' || phase === 'ko';
+
+  let floor = base;
+  // ak sa niektorá fáza nepreplánováva, nadviaž na už naplánované zápasy
+  const existing = competitions.flatMap(c => [
+    ...(doGroups ? [] : c.groups.flatMap(g => g.matches)),
+    ...(doPlayoff ? [] : c.groups.flatMap(g => g.playoff ? [g.playoff.final, ...(g.playoff.third ? [g.playoff.third] : [])] : [])),
+  ]).map(m => m.scheduledTime).filter(Boolean) as string[];
+  existing.forEach(t => { const [a, b] = t.split(':').map(Number); floor = Math.max(floor, a * 60 + b + matchMinutes); });
+  if (doGroups) {
+    const all = copy.flatMap(c => c.groups.flatMap(g => g.matches.map(m => ({ m })))).sort((a, b) => a.m.round - b.m.round);
+    for (const { m } of all) { if (!m.playerAId || !m.playerBId) { clear(m); continue; } floor = Math.max(floor, place(m, base)); }
+  }
+  if (doPlayoff) {
+    const pos = copy.flatMap(c => c.groups.flatMap(g => g.playoff ? [g.playoff.final, ...(g.playoff.third ? [g.playoff.third] : [])] : []));
+    for (const m of pos) { if (!m.playerAId || !m.playerBId) { clear(m); continue; } floor = Math.max(floor, place(m, floor)); }
+  }
+  if (doKo) {
+    for (const c of copy) {
+      for (const side of ['main', 'consolation'] as const) {
+        let roundFloor = floor;
+        for (const r of c.ko[side]) {
+          let end = roundFloor;
+          for (const m of r.matches) end = Math.max(end, place(m, roundFloor));
+          roundFloor = end;
+        }
+      }
+    }
   }
   return copy;
 }

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { Trophy, Settings, Link as LinkIcon } from 'lucide-react';
+import { Settings, Link as LinkIcon, Eye, UserPlus, FileText, Images, Video, Plus } from 'lucide-react';
 import { EntryCard } from './components/EntryCard';
 import { GroupTable } from './components/GroupTable';
 import { MatchOverview, type Side } from './components/MatchOverview';
-import { getTournament } from './lib/supabase';
+import { getTournament, listMedia, listRegistrations, embedUrl, type MediaItem, type Registration } from './lib/supabase';
+import { RegistrationForm } from './components/RegistrationForm';
 import { TEAM_SYSTEMS, entryMap, finalOrder, groupRounds, scoreText, setsText, standings, tieTables } from './lib/multisport';
 import type { Competition, GenericEntry, KnockoutRound, Match, TournamentState } from './types';
 import './styles.css';
@@ -17,9 +18,22 @@ export function PublicView() {
   const [state, setState] = useState<'load' | 'ok' | 'missing'>('load');
   const [card, setCard] = useState<{ comp: Competition; entryId: string; name: string } | null>(null);
   const [mo, setMo] = useState<{ comp: Competition; em: Map<string, GenericEntry>; m: Match; event: string; groupName?: string; matchNo?: string } | null>(null);
+  const [tab, setTab] = useState<'prehlad' | 'registracia' | 'propozicie' | 'galeria' | 'videa'>('prehlad');
+  const [regs, setRegs] = useState<Registration[]>([]);
+  const [media, setMedia] = useState<MediaItem[]>([]);
+  const [regOpen, setRegOpen] = useState(false);
+  const [regDone, setRegDone] = useState(false);
+  const loadExtras = async () => {
+    try { setRegs(await listRegistrations(slug)); } catch { /* ignore */ }
+    try { setMedia(await listMedia(slug)); } catch { /* ignore */ }
+  };
+  useEffect(() => { loadExtras(); }, [slug]);
 
   useEffect(() => {
     let alive = true;
+    let ticks = 0;
+    let lastAction = Date.now();
+    const seen = () => { lastAction = Date.now(); };
     const load = async (first: boolean) => {
       try {
         const t = await getTournament(slug);
@@ -29,10 +43,26 @@ export function PublicView() {
       } catch { if (first && alive) setState('missing'); }
     };
     load(true);
-    const id = setInterval(() => load(false), 30000);
-    const onVis = () => { if (document.visibilityState === 'visible') load(false); };
+    // Neaktivita: skrytá karta sa neobnovuje vôbec, dlho nečinná len zriedka.
+    const id = setInterval(() => {
+      if (document.visibilityState !== 'visible') return;      // karta v pozadí → nič
+      ticks++;
+      const idleMin = (Date.now() - lastAction) / 60000;
+      if (idleMin > 20 && ticks % 10 !== 0) return;             // po 20 min nečinnosti len raz za 5 min
+      load(false);
+    }, 30000);
+    const onVis = () => { if (document.visibilityState === 'visible') { seen(); load(false); } };
     document.addEventListener('visibilitychange', onVis);
-    return () => { alive = false; clearInterval(id); document.removeEventListener('visibilitychange', onVis); };
+    window.addEventListener('pointerdown', seen);
+    window.addEventListener('keydown', seen);
+    window.addEventListener('scroll', seen, { passive: true });
+    return () => {
+      alive = false; clearInterval(id);
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('pointerdown', seen);
+      window.removeEventListener('keydown', seen);
+      window.removeEventListener('scroll', seen);
+    };
   }, [slug]);
   const url = typeof window !== 'undefined' ? `${window.location.origin}/t/${slug}` : '';
 
@@ -77,9 +107,54 @@ export function PublicView() {
       <div className="pub-qr"><QRCodeSVG value={url} size={104} /><button className="link-btn" onClick={() => navigator.clipboard?.writeText(url)}><LinkIcon size={13} />Kopírovať odkaz</button></div>
     </div>
 
-    {data.competitions.length === 0 && <p className="muted">Turnaj sa pripravuje.</p>}
+    {(() => {
+      const props = media.filter(x => x.kind === 'propozicie');
+      const photos = media.filter(x => x.kind === 'photo');
+      const vids = media.filter(x => x.kind === 'video');
+      const tabs: [typeof tab, string, React.ReactNode, boolean][] = [
+        ['prehlad', 'Prehľad', <Eye size={15} key="i" />, true],
+        ['registracia', 'Registrácia', <UserPlus size={15} key="i" />, true],
+        ['propozicie', 'Propozície', <FileText size={15} key="i" />, props.length > 0],
+        ['galeria', 'Galéria', <Images size={15} key="i" />, photos.length > 0],
+        ['videa', 'Videá', <Video size={15} key="i" />, vids.length > 0],
+      ];
+      return <nav className="pub-tabs">{tabs.filter(t => t[3]).map(([k, lbl, ic]) =>
+        <button key={k} className={`pub-tab${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>{ic}{lbl}</button>)}</nav>;
+    })()}
 
-    {data.competitions.map(c => {
+    {tab === 'registracia' && <section className="card pub-card">
+      <div className="card-header"><h2>Registrácia</h2><button className="button primary" onClick={() => { setRegDone(false); setRegOpen(true); }}><Plus size={16} />Chcem sa registrovať</button></div>
+      {regDone && <p className="reg-ok">Prihláška bola odoslaná. Ďakujeme!</p>}
+      <h3 className="reg-h">Registrovaní ({regs.length})</h3>
+      {regs.length === 0 ? <p className="muted">Zatiaľ nikto nie je prihlásený.</p> :
+        <div className="reg-list">{regs.map((r, i) => <div className="reg-row" key={r.id}>
+          <span className="reg-n"><em>#</em>{i + 1}</span>
+          <div className="reg-who"><strong>{r.first_name} {r.last_name}</strong><span>{r.club || '—'}</span></div>
+          <div className="reg-meta"><span className="reg-cap">Krajina</span>{r.country}</div>
+          <div className="reg-meta"><span className="reg-cap">Rok nar. / licencia</span>{r.birth_year ?? '—'} / {r.license_until ? new Date(r.license_until).toLocaleDateString('sk-SK') : '-'}</div>
+          {r.categories?.length > 0 && <div className="reg-meta reg-cats-view"><span className="reg-cap">Kategórie</span>{r.categories.join(', ')}</div>}
+        </div>)}</div>}
+    </section>}
+
+    {tab === 'propozicie' && <section className="card pub-card"><h2>Propozície</h2>
+      <div className="media-list">{media.filter(x => x.kind === 'propozicie').map(x => <a className="media-doc" key={x.id} href={x.url} target="_blank" rel="noreferrer">
+        <FileText size={20} /><div><strong>{x.title || 'Propozície turnaja'}</strong><span>Otvoriť PDF</span></div></a>)}</div>
+    </section>}
+
+    {tab === 'galeria' && <section className="card pub-card"><h2>Fotogaléria</h2>
+      <div className="gallery">{media.filter(x => x.kind === 'photo').map(x => <a className="gal-item" key={x.id} href={x.url} target="_blank" rel="noreferrer">
+        <img src={x.url} alt={x.title || 'Foto'} loading="lazy" /></a>)}</div>
+    </section>}
+
+    {tab === 'videa' && <section className="card pub-card"><h2>Videá</h2>
+      <div className="videos">{media.filter(x => x.kind === 'video').map(x => <div className="vid" key={x.id}>
+        {x.title && <h4>{x.title}</h4>}
+        <div className="vid-frame"><iframe src={embedUrl(x.url)} title={x.title || 'Video'} allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture" allowFullScreen loading="lazy" /></div></div>)}</div>
+    </section>}
+
+    {tab === 'prehlad' && data.competitions.length === 0 && <p className="muted">Turnaj sa pripravuje.</p>}
+
+    {tab === 'prehlad' && data.competitions.map(c => {
       const em = entryMap(c, data.players, data.pairs, data.teams);
       if (c.type === 'teams') return <section className="card pub-card" key={c.id}>
         <h2>{c.name} · {TEAM_SYSTEMS[c.teamSystemId || 'CORBILLON'].name}</h2>
@@ -122,7 +197,7 @@ export function PublicView() {
       </section>;
     })}
 
-    {hasSchedule(data.competitions) && <section className="card pub-card"><h2>Harmonogram</h2>
+    {tab === 'prehlad' && hasSchedule(data.competitions) && <section className="card pub-card"><h2>Harmonogram</h2>
       <div className="table-scroll"><table><thead><tr><th>Čas</th><th>Stôl</th><th>Súťaž</th><th>Zápas</th></tr></thead><tbody>
         {data.competitions.flatMap(c => c.groups.flatMap(g => g.matches.filter(m => m.scheduledTime).map(m => ({ c, m }))))
           .sort((a, b) => (a.m.scheduledTime || '').localeCompare(b.m.scheduledTime || ''))
@@ -135,6 +210,8 @@ export function PublicView() {
       return <MatchOverview tournament={name} competition={mo.comp.name} event={mo.event} groupName={mo.groupName}
         date={data.settings.date} table={mo.m.table ?? null} matchNo={mo.matchNo}
         a={side(A)} b={side(B)} m={mo.m} onClose={() => setMo(null)} />; })()}
+    {regOpen && <RegistrationForm slug={slug} tournament={name} categories={data.competitions.map(c => c.name)}
+      onClose={() => setRegOpen(false)} onDone={() => { setRegOpen(false); setRegDone(true); loadExtras(); }} />}
     {card && <EntryCard competition={card.comp} entryId={card.entryId} name={card.name} label={label} avatar={data.players.find(p => p.id === card.entryId)?.photo} onClose={() => setCard(null)} />}
   </Shell>;
 }

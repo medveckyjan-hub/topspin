@@ -286,3 +286,63 @@ tr.gt-second td{background:#f7f9fb}
 .pub-match-click:hover{border-color:#e62834}
 .pm-club{display:block;font-style:normal;font-size:.64rem;font-weight:700;color:#9aa4b2;text-transform:uppercase}
 @media(max-width:560px){.mo-meta{grid-template-columns:1fr}.kround{min-width:180px;padding:0 12px}}
+/* rozpis + databáza + väčšie okraje v prehľade zápasu */
+.modal.mo{padding:0 16px 20px}
+.modal.mo .modal-head{padding-left:8px;padding-right:8px}
+.sched-actions{flex-wrap:wrap;margin-top:12px}
+.db-wide{width:100%;border:1px solid #d6dde5;border-radius:10px;padding:11px 12px;background:#fbfcfd;margin-top:10px}
+
+/* ============ záložky verejnej stránky ============ */
+.pub-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 18px}
+.pub-tab{display:inline-flex;align-items:center;gap:7px;border:1px solid #e0e6ec;background:#fff;color:#5a6675;border-radius:999px;padding:9px 16px;font-size:.85rem;font-weight:700;cursor:pointer;transition:.15s}
+.pub-tab:hover{border-color:#c3ccd6}
+.pub-tab.active{background:#172033;border-color:#172033;color:#fff}
+
+/* ============ registrácia ============ */
+.modal.reg{max-width:720px;padding:0 16px 20px}
+.reg-sub{font-weight:600;color:#8a95a4;font-size:.95rem}
+.reg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px 0}
+.reg-f{display:flex;flex-direction:column;gap:5px;font-size:.72rem;font-weight:800;}
+.reg-f{color:#3a72d8;text-transform:uppercase;letter-spacing:.03em}
+.reg-f b{color:#e62834}
+.reg-f input,.reg-f select,.reg-f textarea{border:1px solid #d6dde5;border-radius:10px;padding:11px 12px;font:inherit;font-size:.9rem;color:#172033;text-transform:none;letter-spacing:0;font-weight:400;background:#fff}
+.reg-f input:focus,.reg-f select:focus,.reg-f textarea:focus{outline:none;border-color:#3a72d8}
+.reg-wide{grid-column:1/-1}
+.reg-lab{display:block;margin-bottom:6px}
+.reg-cats{display:flex;flex-wrap:wrap;gap:14px}
+.reg-cat{display:inline-flex;align-items:center;gap:7px;font-size:.85rem;font-weight:600;color:#2a3547;text-transform:none;letter-spacing:0}
+.reg-err{background:#fdecec;color:#c72834;border-radius:10px;padding:10px 12px;font-size:.85rem;font-weight:700;margin:6px 0}
+.reg-ok{background:#eaf7ef;color:#18824a;border-radius:10px;padding:10px 12px;font-size:.88rem;font-weight:700}
+.reg-actions{padding-top:10px}
+.reg-h{margin:14px 0 10px;text-align:center;color:#5a6675;font-size:.95rem}
+.reg-list{display:grid;gap:10px}
+.reg-row{display:grid;grid-template-columns:52px 1.6fr 1fr 1.2fr;gap:14px;align-items:center;border:1px solid #eceff2;border-radius:12px;padding:12px 16px}
+.reg-n{color:#172033;font-weight:800;font-size:1rem}
+.reg-n em{display:block;font-style:normal;font-size:.62rem;color:#9aa4b2}
+.reg-who strong{display:block;font-size:.95rem;color:#172033}
+.reg-who span{font-size:.74rem;color:#7b8798;text-transform:uppercase;font-weight:700}
+.reg-meta{font-size:.86rem;color:#2a3547;font-weight:700}
+.reg-cap{display:block;font-size:.62rem;color:#9aa4b2;text-transform:uppercase;letter-spacing:.04em;font-weight:800}
+.reg-mail{font-size:.78rem;color:#7b8798;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ============ médiá ============ */
+.media-list{display:grid;gap:10px}
+.media-doc{display:flex;align-items:center;gap:12px;border:1px solid #e4e9ee;border-radius:12px;padding:14px 16px;text-decoration:none;color:#172033}
+.media-doc:hover{border-color:#e62834}
+.media-doc strong{display:block}
+.media-doc span{font-size:.76rem;color:#7b8798}
+.media-admin{display:grid;gap:8px;margin-top:12px}
+.media-arow{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid #eceff2;border-radius:10px;padding:9px 12px;font-size:.86rem}
+.media-arow a{color:#2a3547;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.media-arow a:hover{color:#e62834}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.gal-item{position:relative;display:block;border-radius:12px;overflow:hidden;aspect-ratio:4/3;background:#f1f4f7}
+.gal-item img{width:100%;height:100%;object-fit:cover;display:block}
+.gallery-admin{margin-top:12px}
+.gal-x{position:absolute;top:6px;right:6px;border:0;background:#e62834cc;color:#fff;border-radius:8px;padding:5px 6px;cursor:pointer;display:flex}
+.videos{display:grid;gap:16px}
+.vid h4{margin:0 0 8px;font-size:.92rem;color:#172033}
+.vid-frame{position:relative;padding-top:56.25%;border-radius:12px;overflow:hidden;background:#000}
+.vid-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+@media(max-width:640px){.reg-grid{grid-template-columns:1fr}.reg-row{grid-template-columns:40px 1fr;gap:8px}.reg-meta{font-size:.8rem}}
+.save-chip.stale{background:#fff4e0;color:#a5670a;cursor:pointer}

@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { Menu, Plus, Trash2, Download, Printer, Shuffle, ShieldCheck, FileSpreadsheet, X, Wand2 } from 'lucide-react';
+import { Menu, Plus, Trash2, Download, Printer, Shuffle, ShieldCheck, FileSpreadsheet, CalendarClock, Database, X, Wand2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Sidebar } from './components/Sidebar';
 import { EntryCard } from './components/EntryCard';
@@ -7,8 +7,11 @@ import {
   TEAM_SYSTEMS, applySubstitution, autoSchedule, buildTeamTie, canMovePlayer, createGroupPlayoff, createGroups, createKnockout,
   advanceKnockout as advance, entryMap, finalOrder, groupRounds, movePlayer, normalizeMatch, resizeSets, scoreTeamTie, scoreText, setsText, setsToWin, setGroupBestOf, setRoundBestOf, standings, tieTables, uid, validateMatch,
 } from './lib/multisport';
-import { cloudReady, searchPlayers, upsertPlayer, type DbPlayer } from './lib/supabase';
+import { cloudReady, listPlayers, searchPlayers, upsertPlayer, type DbPlayer } from './lib/supabase';
 import { GroupTable } from './components/GroupTable';
+import { RegistrationsAdmin } from './components/RegistrationsAdmin';
+import { AGE_CATEGORIES, categoryLabel, categoryLimits, type CompetitionCategory, type GenderMode } from './lib/categories';
+import type { SchedulePhase } from './lib/multisport';
 import type {
   Competition, CompetitionType, GenericEntry, Knockout, Match, Player, TeamSystemId, TeamTie, TournamentGroup, TournamentState, View,
 } from './types';
@@ -16,7 +19,7 @@ import './styles.css';
 
 export const emptyTournament = (name: string): TournamentState => ({
   version: 5,
-  settings: { name: name || 'Turnaj', date: new Date().toISOString().slice(0, 10), venue: '', tables: 8, matchMinutes: 25, restMinutes: 15 },
+  settings: { name: name || 'Turnaj', date: new Date().toISOString().slice(0, 10), venue: '', tables: 8, matchMinutes: 20, restMinutes: 5, startTime: '09:00' },
   players: [], pairs: [], teams: [], competitions: [],
 });
 
@@ -26,7 +29,7 @@ type Detail =
   | { kind: 'team'; compId: string; tieId: string; rubberId: string }
   | { kind: 'playoff'; compId: string; groupId: string; slot: 'final' | 'third' };
 
-export function TournamentEditor({ initial, onSave, banner, onDelete }: { initial: TournamentState; onSave: (s: TournamentState) => void; banner?: React.ReactNode; onDelete?: () => void }) {
+export function TournamentEditor({ initial, onSave, banner, onDelete, slug, pin }: { initial: TournamentState; onSave: (s: TournamentState) => void; banner?: React.ReactNode; onDelete?: () => void; slug?: string; pin?: string }) {
   const [state, setState] = useState<TournamentState>(initial);
   const [view, setView] = useState<View>('dashboard');
   const [open, setOpen] = useState(false);
@@ -92,7 +95,7 @@ export function TournamentEditor({ initial, onSave, banner, onDelete }: { initia
 
   const closeDetail = () => setDetail(null);
 
-  const titles: Record<View, string> = { dashboard: 'Prehľad turnaja', players: 'Hráči', entries: 'Páry a družstvá', competitions: 'Súťaže', groups: 'Skupiny', results: 'Výsledky skupín', knockout: 'Vyraďovacie pavúky', schedule: 'Stoly a harmonogram', order: 'Konečné poradie', teams: 'Družstvové zápasy', exports: 'Tlač a export' };
+  const titles: Record<View, string> = { dashboard: 'Prehľad turnaja', players: 'Hráči', database: 'Databáza hráčov', registration: 'Registrácia a médiá', entries: 'Páry a družstvá', competitions: 'Súťaže', groups: 'Skupiny', results: 'Výsledky skupín', knockout: 'Vyraďovacie pavúky', schedule: 'Stoly a harmonogram', order: 'Konečné poradie', teams: 'Družstvové zápasy', exports: 'Tlač a export' };
 
   return (
     <div className="app-layout">
@@ -115,6 +118,10 @@ export function TournamentEditor({ initial, onSave, banner, onDelete }: { initia
           {view === 'knockout' && <Knockout state={state} update={updateComp} label={label} openMatch={setDetail} setNotice={setNotice} />}
           {view === 'schedule' && <Schedule state={state} setState={setState} setNotice={setNotice} label={label} />}
           {view === 'order' && <FinalOrderView state={state} update={updateComp} />}
+          {view === 'database' && <PlayerDatabase state={state} setState={setState} setNotice={setNotice} />}
+          {view === 'registration' && (slug && pin
+            ? <RegistrationsAdmin slug={slug} pin={pin} state={state} setState={setState} setNotice={setNotice} />
+            : <Empty title="Registrácia" text="Registrácie a médiá sú dostupné po prihlásení do turnaja cez PIN (adresa /t/…/admin)." />)}
           {view === 'teams' && <Teams state={state} update={updateComp} label={label} openMatch={setDetail} setNotice={setNotice} />}
           {view === 'exports' && <Exports state={state} setState={setState} label={label} />}
         </div>
@@ -250,8 +257,10 @@ function Competitions({ state, add, update, remove, setNotice }: { state: Tourna
     {state.competitions.map(c => {
       const em = entryMap(c, state.players, state.pairs, state.teams); const available = [...em.values()];
       return <section className="card form-card" key={c.id}>
-        <div className="card-header"><div><span className="kicker">{c.type}{c.type === 'teams' ? ` · ${TEAM_SYSTEMS[c.teamSystemId || 'CORBILLON'].name}` : ''}</span><h2>{c.name}</h2></div><button className="icon-button danger" onClick={() => remove(c.id)}><Trash2 /></button></div>
+        <div className="card-header"><div><span className="kicker">{c.type}{c.category ? ` · ${categoryLabel(c.category)}` : ''}{c.type === 'teams' ? ` · ${TEAM_SYSTEMS[c.teamSystemId || 'CORBILLON'].name}` : ''}</span><h2>{c.name}</h2></div><button className="icon-button danger" onClick={() => remove(c.id)}><Trash2 /></button></div>
         <div className="settings-grid">
+          <CategoryPicker value={c.category} onChange={cat => update(c.id, x => ({ ...x, category: cat }))} />
+          <label>Štartovné (€)<input type="number" min={0} step="0.5" value={c.entryFee ?? ''} placeholder="—" onChange={e => update(c.id, x => ({ ...x, entryFee: e.target.value === '' ? undefined : Number(e.target.value) }))} /></label>
           <label>Best of (základ)<BestOf value={c.bestOf} onChange={v => update(c.id, x => ({ ...x, bestOf: v }))} /></label>
           {c.type !== 'teams' && <><label>Veľkosť skupiny<select value={c.preferredSize} onChange={e => update(c.id, x => ({ ...x, preferredSize: Number(e.target.value) }))}>{Array.from({ length: 10 }, (_, i) => i + 3).map(x => <option key={x}>{x}</option>)}</select></label>
             <label>Postupujúci<input type="number" min={0} max={8} value={c.qualifiersPerGroup} onChange={e => update(c.id, x => ({ ...x, qualifiersPerGroup: Math.max(0, Number(e.target.value) || 0) }))} /></label>
@@ -384,13 +393,49 @@ function Knockout({ state, update, label, openMatch, setNotice }: { state: Tourn
 }
 
 function Schedule({ state, setState, setNotice, label }: { state: TournamentState; setState: React.Dispatch<React.SetStateAction<TournamentState>>; setNotice: (s: string) => void; label: (id: string | null) => string }) {
-  const comps = state.competitions.filter(c => c.groups.length);
+  const s0 = state.settings;
+  const setS = (patch: Partial<typeof s0>) => setState(st => ({ ...st, settings: { ...st.settings, ...patch } }));
+  const run = (phase: SchedulePhase, what: string) => {
+    setState(st => ({ ...st, competitions: autoSchedule(st.competitions, st.settings.tables, st.settings.startTime || '09:00', st.settings.matchMinutes, st.settings.restMinutes, phase) }));
+    setNotice(`Naplánované: ${what} (zápas ${s0.matchMinutes} min, prestávka ${s0.restMinutes} min).`);
+  };
+  const clearAll = () => setState(st => ({ ...st, competitions: st.competitions.map(c => ({
+    ...c,
+    groups: c.groups.map(g => ({ ...g, matches: g.matches.map(m => ({ ...m, table: undefined, scheduledTime: undefined })), playoff: g.playoff ? { final: { ...g.playoff.final, table: undefined, scheduledTime: undefined }, third: g.playoff.third ? { ...g.playoff.third, table: undefined, scheduledTime: undefined } : null } : undefined })),
+    ko: { main: c.ko.main.map(r => ({ ...r, matches: r.matches.map(m => ({ ...m, table: undefined, scheduledTime: undefined })) })), consolation: c.ko.consolation.map(r => ({ ...r, matches: r.matches.map(m => ({ ...m, table: undefined, scheduledTime: undefined })) })) },
+  })) }));
+
+  const rows = state.competitions.flatMap(c => [
+    ...c.groups.flatMap(g => g.matches.map(m => ({ c, phase: g.name, m }))),
+    ...c.groups.flatMap(g => g.playoff ? [{ c, phase: `${g.name} · o 1. miesto`, m: g.playoff.final }, ...(g.playoff.third ? [{ c, phase: `${g.name} · o 3. miesto`, m: g.playoff.third }] : [])] : []),
+    ...c.ko.main.flatMap(r => r.matches.map(m => ({ c, phase: r.name, m }))),
+    ...c.ko.consolation.flatMap(r => r.matches.map(m => ({ c, phase: `Útecha · ${r.name}`, m }))),
+  ]).filter(x => x.m.scheduledTime).sort((a, b) => (a.m.scheduledTime || '').localeCompare(b.m.scheduledTime || '') || (a.m.table ?? 0) - (b.m.table ?? 0));
+
   return <div className="matches-stack">
-    <section className="card"><div className="card-header"><h2>Stoly a harmonogram</h2>
-      <button className="button primary" onClick={() => { setState(s => ({ ...s, competitions: autoSchedule(s.competitions, s.settings.tables, '09:00', s.settings.matchMinutes, s.settings.restMinutes) })); setNotice('Harmonogram vytvorený bez konfliktov hráčov.'); }}>Automaticky naplánovať</button></div>
-      {!comps.length && <p className="muted">Zatiaľ žiadne skupinové zápasy.</p>}
+    <section className="card form-card"><h2>Nastavenie rozpisu</h2>
+      <div className="settings-grid">
+        <label>Začiatok<input type="time" value={s0.startTime || '09:00'} onChange={e => setS({ startTime: e.target.value })} /></label>
+        <label>Počet stolov<input type="number" min={1} value={s0.tables} onChange={e => setS({ tables: Number(e.target.value) || 1 })} /></label>
+        <label>Dĺžka zápasu (min.)<input type="number" min={5} value={s0.matchMinutes} onChange={e => setS({ matchMinutes: Number(e.target.value) || 20 })} /></label>
+        <label>Prestávka hráča (min.)<input type="number" min={0} value={s0.restMinutes} onChange={e => setS({ restMinutes: Number(e.target.value) || 0 })} /></label>
+      </div>
+      <p className="field-hint">Rozpis počíta s dĺžkou zápasu a prestávkou hráča medzi zápasmi. Hodnoty si nastav ručne (predvolené 20 / 5 min.).</p>
+      <div className="row-actions sched-actions">
+        <button className="button primary" onClick={() => run('all', 'celý turnaj')}><CalendarClock size={15} />Naplánovať celý turnaj</button>
+        <button className="button" onClick={() => run('groups', 'skupiny')}>Len skupiny</button>
+        <button className="button" onClick={() => run('playoff', 'play-off skupín')}>Len play-off</button>
+        <button className="button" onClick={() => run('ko', 'vyraďovacie pavúky')}>Len pavúky</button>
+        <button className="button" onClick={() => { if (confirm('Zmazať všetky časy a stoly?')) clearAll(); }}>Vymazať rozpis</button>
+      </div>
     </section>
-    {comps.map(c => <section className="card form-card" key={c.id}><h2>{c.name} — rozpis po kolách</h2>
+
+    {rows.length > 0 && <section className="card"><div className="card-header"><h2>Harmonogram ({rows.length} zápasov)</h2><button className="button" onClick={() => window.print()}><Printer size={15} />Tlač</button></div>
+      <div className="table-scroll"><table><thead><tr><th>Čas</th><th>Stôl</th><th>Súťaž</th><th>Fáza</th><th>Zápas</th></tr></thead><tbody>
+        {rows.map(({ c, phase, m }) => <tr key={m.id}><td><b>{m.scheduledTime}</b></td><td>{m.table ?? '—'}</td><td>{c.name}</td><td>{phase}</td><td>{label(m.playerAId)} – {label(m.playerBId)}</td></tr>)}
+      </tbody></table></div></section>}
+
+    {state.competitions.filter(c => c.groups.length).map(c => <section className="card form-card" key={c.id}><h2>{c.name} — rozpis po kolách</h2>
       {groupRounds(c).map(r => <div className="round-block" key={r.round}>
         <h3>{r.round}. kolo</h3>
         <div className="round-matches">{r.items.map(({ groupName, m }) => <div className="round-match" key={m.id}>
@@ -400,6 +445,7 @@ function Schedule({ state, setState, setNotice, label }: { state: TournamentStat
         </div>)}</div>
       </div>)}
     </section>)}
+    {!state.competitions.some(c => c.groups.length) && <Empty title="Žiadny rozpis" text="Najprv vytvor skupiny alebo pavúk." />}
   </div>;
 }
 
@@ -467,6 +513,80 @@ function FinalOrderView({ state, update }: { state: TournamentState; update: (id
         </tbody></table></div>}
     </section>;
   })}</div>;
+}
+
+function CategoryPicker({ value, onChange }: { value?: CompetitionCategory; onChange: (c: CompetitionCategory | undefined) => void }) {
+  const cat = value;
+  const groups = [...new Set(AGE_CATEGORIES.map(a => a.group))];
+  const lim = categoryLimits(cat);
+  return <>
+    <label>Veková kategória<select value={cat?.id ?? ''} onChange={e => {
+      const id = e.target.value;
+      if (!id) return onChange(undefined);
+      onChange({ id, gender: cat?.gender ?? 'M', customLabel: cat?.customLabel, minAge: undefined, maxAge: undefined });
+    }}>
+      <option value="">— bez kategórie —</option>
+      {groups.map(g => <optgroup key={g} label={g}>
+        {AGE_CATEGORIES.filter(a => a.group === g).map(a => <option key={a.id} value={a.id}>{a.labelX}</option>)}
+      </optgroup>)}
+      <option value="CUSTOM">Vlastná kategória…</option>
+    </select></label>
+
+    {cat && <label>Zložka<select value={cat.gender} onChange={e => onChange({ ...cat, gender: e.target.value as GenderMode })}>
+      <option value="M">Chlapci / muži</option><option value="F">Dievčatá / ženy</option><option value="MIX">Spoločne (chlapci aj dievčatá)</option>
+    </select></label>}
+
+    {cat?.id === 'CUSTOM' && <>
+      <label>Názov kategórie<input value={cat.customLabel ?? ''} placeholder="napr. Nádeje klubu" onChange={e => onChange({ ...cat, customLabel: e.target.value })} /></label>
+      <label>Vek od (nepovinné)<input type="number" min={0} value={cat.minAge ?? ''} placeholder="—" onChange={e => onChange({ ...cat, minAge: e.target.value === '' ? undefined : Number(e.target.value) })} /></label>
+      <label>Vek do (nepovinné)<input type="number" min={0} value={cat.maxAge ?? ''} placeholder="—" onChange={e => onChange({ ...cat, maxAge: e.target.value === '' ? undefined : Number(e.target.value) })} /></label>
+    </>}
+
+    {cat && cat.id !== 'CUSTOM' && (lim.minAge != null || lim.maxAge != null) &&
+      <p className="field-hint">{categoryLabel(cat)} · {lim.maxAge != null ? `do ${lim.maxAge} rokov` : ''}{lim.minAge != null ? `od ${lim.minAge} rokov` : ''}. Vek sa počíta z roku narodenia k dátumu turnaja.</p>}
+  </>;
+}
+
+function PlayerDatabase({ state, setState, setNotice }: { state: TournamentState; setState: React.Dispatch<React.SetStateAction<TournamentState>>; setNotice: (s: string) => void }) {
+  const [all, setAll] = useState<DbPlayer[]>([]);
+  const [q, setQ] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+  const load = async () => {
+    if (!cloudReady) { setLoading(false); setErr('Databáza je dostupná len pri pripojení do cloudu.'); return; }
+    setLoading(true); setErr('');
+    try { setAll(await listPlayers()); } catch (e) { setErr('Databázu sa nepodarilo načítať: ' + (e as Error).message); }
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+  const inTournament = (n: string) => state.players.some(p => p.name.trim().toLowerCase() === n.trim().toLowerCase());
+  const addOne = (h: DbPlayer) => {
+    if (inTournament(h.name)) return;
+    setState(s => ({ ...s, players: [...s.players, { id: uid(), name: h.name, club: h.club, rating: h.rating, gender: (h.gender === 'F' ? 'F' : h.gender === 'X' ? 'X' : 'M'), photo: h.photo }] }));
+  };
+  const view = all.filter(h => !q.trim() || h.name.toLowerCase().includes(q.trim().toLowerCase()) || (h.club || '').toLowerCase().includes(q.trim().toLowerCase()));
+  const syncAll = () => {
+    if (!cloudReady) return;
+    Promise.all(state.players.filter(p => p.name.trim()).map(p => upsertPlayer({ name: p.name, club: p.club, rating: p.rating, gender: p.gender, photo: p.photo }).catch(() => {})))
+      .then(() => { setNotice('Hráči z turnaja boli uložení do databázy.'); load(); });
+  };
+  return <div className="matches-stack">
+    <section className="card form-card"><div className="card-header"><h2>Databáza hráčov ({all.length})</h2><div className="row-actions">
+      <button className="button" onClick={syncAll}>Uložiť hráčov turnaja do DB</button>
+      <button className="button" onClick={load}>Obnoviť</button></div></div>
+      <p className="field-hint">Každý hráč, ktorý niekedy hral turnaj v systéme, ostáva v databáze. Odtiaľto ho pridáš do aktuálneho turnaja jedným klikom.</p>
+      <input className="db-wide" placeholder="Hľadať podľa mena alebo klubu…" value={q} onChange={e => setQ(e.target.value)} />
+    </section>
+    <section className="card">
+      {loading ? <p className="muted">Načítavam…</p> : err ? <p className="muted">{err}</p> : view.length === 0 ? <p className="muted">Nič sa nenašlo.</p> :
+        <div className="table-scroll"><table><thead><tr><th>#</th><th>Foto</th><th>Meno</th><th>Klub</th><th>Poh.</th><th>Rating</th><th /></tr></thead><tbody>
+          {view.map((h, i) => <tr key={h.name + i}><td>{i + 1}</td>
+            <td><Avatar photo={h.photo} name={h.name} size={34} /></td>
+            <td><strong>{h.name}</strong></td><td>{h.club || '—'}</td><td>{h.gender}</td><td>{h.rating || '—'}</td>
+            <td>{inTournament(h.name) ? <span className="pill">v turnaji</span> : <button className="button" onClick={() => addOne(h)}><Plus size={15} />Pridať</button>}</td></tr>)}
+        </tbody></table></div>}
+    </section>
+  </div>;
 }
 
 function Empty({ title, text }: { title: string; text: string }) { return <section className="card page-empty"><h2>{title}</h2><p>{text}</p></section>; }

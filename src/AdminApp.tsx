@@ -3,7 +3,7 @@ import { useParams, useLocation, Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { Lock, Trophy, Link as LinkIcon, Eye, RotateCcw, Save, Home } from 'lucide-react';
 import { TournamentEditor } from './App';
-import { deleteTournament, getTournament, saveTournament, verifyPin } from './lib/supabase';
+import { deleteTournament, getTournament, isConflict, saveTournament, verifyPin } from './lib/supabase';
 import type { TournamentState } from './types';
 import './styles.css';
 
@@ -25,6 +25,9 @@ export function AdminApp() {
   const [entry, setEntry] = useState('');
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [pending, setPending] = useState<Backup | null>(null);
+  const [stale, setStale] = useState(false);
+  const lastPushed = useRef<string>('');
+  const version = useRef<number>(0);
   const latest = useRef<TournamentState | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nav = useNavigate();
@@ -41,12 +44,36 @@ export function AdminApp() {
       const t = await getTournament(slug); if (!t) { setErr('Turnaj sa nenašiel.'); return; }
       const bk = readBackup(slug);
       if (bk && Date.now() - bk.at < 24 * 3600 * 1000 && JSON.stringify(bk.data) !== JSON.stringify(t.data)) setPending(bk);
+      lastPushed.current = JSON.stringify(t.data); version.current = t.version;
       setInitial(t.data); setName(t.name); setPin(p); setUnlocked(true);
     } catch (e) { setErr((e as Error).message); }
   };
   useEffect(() => { setUnlocked(false); setInitial(null); setEntry(''); setSaveState('idle'); setPin(navPin || ''); if (navPin) openWith(navPin); /* eslint-disable-next-line */ }, [slug]);
 
-  const pushCloud = async (s: TournamentState) => { setSaveState('saving'); try { await saveTournament(slug, s, pin); setSaveState('saved'); } catch { setSaveState('error'); } };
+  const pushCloud = async (s: TournamentState) => {
+    setSaveState('saving');
+    try {
+      version.current = await saveTournament(slug, s, pin, version.current || undefined);
+      lastPushed.current = JSON.stringify(s); setSaveState('saved'); setStale(false);
+    } catch (e) {
+      if (isConflict(e)) { setStale(true); setSaveState('idle'); }   // neprepisujeme cudzie zmeny
+      else setSaveState('error');
+    }
+  };
+
+  /** Načíta turnaj z cloudu. Ak lokálne nič nečaká na uloženie, ticho ho použije;
+   *  inak len upozorní, aby sa nezmazali rozpísané zmeny. */
+  const refetch = async (silent: boolean) => {
+    try {
+      const t = await getTournament(slug);
+      if (!t) return;
+      const cloud = JSON.stringify(t.data);
+      const local = latest.current ? JSON.stringify(latest.current) : lastPushed.current;
+      if (cloud === local) { setStale(false); return; }
+      if (local === lastPushed.current) { setInitial(t.data); setName(t.name); setSeed(x => x + 1); lastPushed.current = cloud; version.current = t.version; setStale(false); }
+      else if (!silent || true) setStale(true);
+    } catch { /* offline – necháme, čo máme */ }
+  };
   const save = (s: TournamentState) => {
     latest.current = s;
     writeBackup(slug, s);            // vždy lokálna záloha (aj keď cloud zlyhá)
@@ -54,6 +81,20 @@ export function AdminApp() {
     timer.current = setTimeout(() => pushCloud(s), 700);
   };
   const forceSave = () => { if (latest.current) pushCloud(latest.current); };
+
+  // Neaktivita: po návrate na kartu (alebo raz za 5 min) over, či sa turnaj nezmenil inde.
+  useEffect(() => {
+    if (!unlocked) return;
+    let hiddenAt = 0;
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
+      if (Date.now() - hiddenAt > 60000) refetch(true);
+    };
+    document.addEventListener('visibilitychange', onVis);
+    const id = setInterval(() => { if (document.visibilityState === 'visible') refetch(true); }, 300000);
+    return () => { document.removeEventListener('visibilitychange', onVis); clearInterval(id); };
+    /* eslint-disable-next-line */
+  }, [unlocked, slug, pin]);
   const restore = () => { if (!pending) return; setInitial(pending.data); setSeed(x => x + 1); setPending(null); pushCloud(pending.data); };
 
   if (!unlocked) return <div className="public-shell"><header className="public-top"><Link className="brand-line" to="/"><img className="brand-logo-sm" src="/topspin.png" alt="TOPSPIN" /><strong>TOPSPIN</strong></Link></header>
@@ -68,6 +109,7 @@ export function AdminApp() {
 
   const url = typeof window !== 'undefined' ? `${window.location.origin}/t/${slug}` : '';
   const banner = <div className="admin-banner">
+    {stale && <button className="save-chip stale" onClick={() => { if (confirm('Turnaj bol medzitým zmenený inde. Načítať aktuálnu verziu? Tvoje neuložené zmeny sa nahradia (ostávajú v zálohe zariadenia).')) { setStale(false); latest.current = null; refetch(false); } }} title="Turnaj bol zmenený v inom zariadení">Zmenené inde – načítať</button>}
     {pending && <button className="save-chip restore" onClick={restore} title="Máš novšiu neuloženú zálohu v tomto zariadení"><RotateCcw size={13} />Obnoviť zálohu</button>}
     <span className={`save-chip ${saveState}`} onClick={saveState === 'error' ? forceSave : undefined} title={saveState === 'error' ? 'Klikni na opätovné uloženie' : ''}>
       {saveState === 'saving' ? 'Ukladám…' : saveState === 'error' ? 'Chyba – skús znova' : 'Uložené'}</span>
@@ -78,5 +120,5 @@ export function AdminApp() {
     <span className="mini-qr"><QRCodeSVG value={url} size={40} /></span>
   </div>;
 
-  return initial ? <TournamentEditor key={seed} initial={initial} onSave={save} banner={banner} onDelete={removeTournament} /> : null;
+  return initial ? <TournamentEditor key={seed} initial={initial} onSave={save} banner={banner} onDelete={removeTournament} slug={slug} pin={pin} /> : null;
 }

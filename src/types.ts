@@ -1,3 +1,4 @@
+import type { CompetitionCategory } from './lib/categories';
 export type Player={id:string;name:string;club:string;rating:number;gender:'M'|'F'|'X';photo?:string};
 export type SetScore={a:number|null;b:number|null};
 export type SpecialResult='WO_A'|'WO_B'|'RET_A'|'RET_B'|'DSQ_A'|'DSQ_B'|null;
@@ -12,15 +13,15 @@ export type TournamentGroup={id:string;name:string;entryIds:string[];matches:Mat
 export type StandingRow={entry:GenericEntry;played:number;wins:number;losses:number;matchPoints:number;setsFor:number;setsAgainst:number;pointsFor:number;pointsAgainst:number;position:number;qualified:boolean;tieNote:string};
 export type KnockoutRound={id:string;name:string;matches:Match[];kind?:'main'|'third';bestOf:3|5|7};
 export type Knockout={main:KnockoutRound[];consolation:KnockoutRound[]};
-export type TeamSystemId='CORBILLON'|'SWAYTHLING'|'OLYMPIC'|'LEAGUE_2P1'|'LEAGUE_3P'|'CUSTOM';
+export type TeamSystemId='CORBILLON'|'SWAYTHLING'|'OLYMPIC'|'LEAGUE_2P1'|'LEAGUE_3P'|'TEAM2_4S'|'TEAM3_5S'|'TEAM3_9S'|'MIXED_TEAM'|'CUSTOM';
 export type TeamRubberKind='singles'|'doubles';
 export type TeamRubberTemplate={order:number;kind:TeamRubberKind;homeSlot:string;awaySlot:string;label:string};
 export type TeamSystem={id:TeamSystemId;name:string;rosterMin:number;rosterMax:number;activePlayers:number;winTarget:number;allowOneSubstitution:boolean;rubbers:TeamRubberTemplate[]};
 export type TeamNomination={homeSlots:Record<string,string>;awaySlots:Record<string,string>;homeDouble:[string,string]|[];awayDouble:[string,string]|[];homeSub?:{outPlayerId:string;inPlayerId:string;fromRubber:number};awaySub?:{outPlayerId:string;inPlayerId:string;fromRubber:number}};
 export type TeamRubber={id:string;order:number;kind:TeamRubberKind;label:string;homePlayerIds:string[];awayPlayerIds:string[];match:Match};
 export type TeamTie={id:string;competitionId:string;homeTeamId:string;awayTeamId:string;systemId:TeamSystemId;nomination:TeamNomination;rubbers:TeamRubber[];homeScore:number;awayScore:number;winnerTeamId:string|null;status:'scheduled'|'playing'|'finished'};
-export type Competition={id:string;name:string;type:CompetitionType;bestOf:3|5|7;preferredSize:number;qualifiersPerGroup:number;thirdPlace:boolean;consolation:boolean;groupPlayoff:boolean;ageCategory?:string;points?:Record<string,number>;entryIds:string[];groups:TournamentGroup[];ko:Knockout;teamSystemId?:TeamSystemId;teamTies:TeamTie[]};
-export type TournamentSettings={name:string;date:string;venue:string;tables:number;matchMinutes:number;restMinutes:number};
+export type Competition={id:string;name:string;type:CompetitionType;bestOf:3|5|7;preferredSize:number;qualifiersPerGroup:number;thirdPlace:boolean;consolation:boolean;groupPlayoff:boolean;ageCategory?:string;category?:CompetitionCategory;entryFee?:number;points?:Record<string,number>;entryIds:string[];groups:TournamentGroup[];ko:Knockout;teamSystemId?:TeamSystemId;teamTies:TeamTie[]};
+export type TournamentSettings={name:string;date:string;venue:string;tables:number;matchMinutes:number;restMinutes:number;startTime?:string};
 export type TournamentState={version:5;settings:TournamentSettings;players:Player[];pairs:PairEntry[];teams:TeamEntry[];competitions:Competition[]};
-export type View='dashboard'|'players'|'entries'|'competitions'|'groups'|'results'|'knockout'|'schedule'|'order'|'teams'|'exports';
+export type View='dashboard'|'players'|'database'|'registration'|'entries'|'competitions'|'groups'|'results'|'knockout'|'schedule'|'order'|'teams'|'exports';
 export type FinalRow={entry:GenericEntry;place:number;placeLabel:string};
