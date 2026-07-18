@@ -208,3 +208,81 @@ a.brand:hover{opacity:.85}
 .minitable table{width:100%}
 .minitable td,.minitable th{padding:5px 8px;font-size:.82rem}
 .field-hint{grid-column:1/-1;margin:2px 0 0;font-size:.78rem;color:#7b8798;line-height:1.4}
+
+/* ============ krížová tabuľka skupiny (SSTZ formát) ============ */
+.gt-wrap{margin-bottom:12px}
+table.gt{width:100%;border-collapse:separate;border-spacing:0}
+table.gt thead th{background:#2b3340;color:#fff;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:9px 8px;text-align:center;border-right:1px solid #3c4553}
+table.gt thead th:first-child{border-radius:8px 0 0 0}
+table.gt thead th:last-child{border-radius:0 8px 0 0;border-right:0}
+table.gt th.gt-player{text-align:left}
+table.gt td{padding:8px;border-bottom:1px solid #eceff2;text-align:center;font-size:.85rem;font-variant-numeric:tabular-nums}
+table.gt td.gt-player{text-align:left}
+.gt-num{width:34px;color:#8a95a4;font-weight:700}
+.gt-id{display:flex;align-items:center;gap:9px}
+.gt-id strong{display:block;font-size:.88rem;line-height:1.2;color:#172033}
+.gt-club{display:block;font-size:.68rem;font-weight:700;color:#8a95a4;text-transform:uppercase;letter-spacing:.02em}
+.gt-ava{width:34px;height:34px;border-radius:50%;object-fit:cover;flex:0 0 auto}
+.gt-ava-ph{background:#dfe5ec;color:#5a6675;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800}
+.gt-cell{min-width:46px}
+.gt-diag{color:#c2cad4;letter-spacing:2px}
+.gt-empty{color:#c2cad4}
+.gt-res{font-weight:700;position:relative}
+.gt-win{color:#18824a;background:#f2fbf5}
+.gt-loss{color:#c72834;background:#fdf5f5}
+.gt-click{cursor:pointer}
+.gt-click:hover{outline:2px solid #e62834;outline-offset:-2px}
+.gt-place{background:#f4f6f8;font-weight:800}
+.gt-place.p1{background:#ffd23f;color:#3a2c00}
+.gt-place.p2{background:#dde3ea}
+tr.gt-first td{background:#fffbeb}
+tr.gt-second td{background:#f7f9fb}
+.gt-order{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;font-size:.78rem;color:#7b8798}
+.gt-order em{font-style:normal;font-weight:800;color:#18824a;background:#eaf7ef;border-radius:6px;padding:2px 8px;font-size:.74rem}
+
+/* ============ pavúk so spojnicami ============ */
+.kbracket{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:4px 0 8px}
+.kround{display:flex;flex-direction:column;min-width:210px;padding:0 18px}
+.kround h4{margin:0 0 8px;font-size:.72rem;font-weight:800;color:#e62834;text-transform:uppercase;letter-spacing:.05em;text-align:center}
+.kround-body{display:flex;flex-direction:column;justify-content:space-around;flex:1;gap:10px}
+.kpair{display:flex;flex-direction:column;justify-content:space-around;flex:1;gap:14px;position:relative}
+.kround:not(.kround-last) .kpair:not(.kpair-solo)::after{content:'';position:absolute;right:-18px;top:25%;height:50%;width:2px;background:#d8dee6}
+.kround:not(.kround-last) .kmatch::after{content:'';position:absolute;top:50%;right:-18px;width:18px;height:2px;background:#d8dee6}
+.kround:not(:first-child) .kmatch::before{content:'';position:absolute;top:50%;left:-18px;width:18px;height:2px;background:#d8dee6}
+.kmatch{position:relative;border:1px solid #e4e9ee;border-radius:10px;background:#fff;overflow:hidden;cursor:pointer;transition:border-color .15s}
+.kmatch:hover{border-color:#e62834}
+.krow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 10px;font-size:.84rem}
+.krow+.krow{border-top:1px solid #eff2f5}
+.krow b{font-variant-numeric:tabular-nums;color:#5a6675;min-width:14px;text-align:right}
+.kname{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.kname em{font-style:normal;font-size:.64rem;font-weight:700;color:#9aa4b2;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.krow.kwin{background:#f2fbf5}
+.krow.kwin span{font-weight:800;color:#18824a}
+.krow.kwin b{color:#18824a;font-weight:800}
+.kthird{margin-top:14px;max-width:250px}
+.kthird h4{margin:0 0 8px;font-size:.72rem;font-weight:800;color:#e62834;text-transform:uppercase;letter-spacing:.05em}
+
+/* ============ prehľad zápasu ============ */
+.modal.mo{max-width:620px}
+.mo-meta{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;padding:12px 0;border-bottom:1px solid #eceff2;font-size:.85rem;color:#2a3547}
+.mo-meta span{color:#8a95a4}
+.mo-players{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px 0 4px}
+.mo-side{display:flex;align-items:center;gap:10px}
+.mo-side.mo-right{justify-content:flex-end;text-align:right}
+.mo-side strong{display:block;font-size:.95rem;color:#172033}
+.mo-side span{font-size:.7rem;font-weight:700;color:#8a95a4;text-transform:uppercase}
+.mo-side.mo-win strong{color:#18824a}
+.mo-ava{width:44px;height:44px;border-radius:50%;object-fit:cover;flex:0 0 auto}
+.mo-ava-ph{background:#dfe5ec;color:#5a6675;display:inline-flex;align-items:center;justify-content:center;font-weight:800}
+.mo-score{text-align:center;font-size:2rem;font-weight:800;color:#172033;padding:10px 0;font-variant-numeric:tabular-nums}
+.mo-special{text-align:center;font-size:.78rem;font-weight:800;color:#e62834;margin-top:-6px;padding-bottom:8px}
+.mo-sets{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding-bottom:6px}
+.mo-set{border:1px solid #dde3ea;border-radius:10px;overflow:hidden;min-width:74px}
+.mo-set-h{display:block;background:#e7ebf0;color:#5a6675;font-size:.64rem;font-weight:800;text-align:center;padding:5px}
+.mo-set-v{padding:8px;text-align:center;font-size:1rem;font-variant-numeric:tabular-nums;background:#f7f9fb;color:#5a6675}
+.mo-set-v+.mo-set-v{border-top:1px solid #e7ebf0}
+.mo-set-v.mo-set-win{color:#18824a;font-weight:800;background:#f2fbf5}
+.pub-match-click{cursor:pointer}
+.pub-match-click:hover{border-color:#e62834}
+.pm-club{display:block;font-style:normal;font-size:.64rem;font-weight:700;color:#9aa4b2;text-transform:uppercase}
+@media(max-width:560px){.mo-meta{grid-template-columns:1fr}.kround{min-width:180px;padding:0 12px}}

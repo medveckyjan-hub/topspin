@@ -8,6 +8,7 @@ import {
   advanceKnockout as advance, entryMap, finalOrder, groupRounds, movePlayer, normalizeMatch, resizeSets, scoreTeamTie, scoreText, setsText, setsToWin, setGroupBestOf, setRoundBestOf, standings, tieTables, uid, validateMatch,
 } from './lib/multisport';
 import { cloudReady, searchPlayers, upsertPlayer, type DbPlayer } from './lib/supabase';
+import { GroupTable } from './components/GroupTable';
 import type {
   Competition, CompetitionType, GenericEntry, Knockout, Match, Player, TeamSystemId, TeamTie, TournamentGroup, TournamentState, View,
 } from './types';
@@ -295,9 +296,11 @@ function Results({ state, update, label, openMatch, openCard }: { state: Tournam
         <div className="match-layout">
         <div><div className="group-mini-head"><h3>{g.name} <span className="pill">{done}/{g.matches.length}</span></h3><BestOf value={g.bestOf} onChange={v => update(c.id, x => ({ ...x, groups: x.groups.map(y => y.id === g.id ? setGroupBestOf(y, v) : y) }))} /></div>
           {g.matches.map(m => <MatchRow key={m.id} m={m} label={label} onClick={() => openMatch({ kind: 'group', compId: c.id, groupId: g.id, matchId: m.id })} />)}</div>
-        <div><h3>Tabuľka</h3><div className="table-scroll"><table><thead><tr><th>#</th><th>Účastník</th><th>Z</th><th>V</th><th>P</th><th>B</th><th>Sety</th><th>Lopt.</th></tr></thead><tbody>
-          {st.map(r => <tr key={r.entry.id} className={r.qualified ? 'qualified-row' : ''}><td>{r.position}</td><td><strong className="clickable-name" onClick={() => openCard(c.id, r.entry.id, r.entry.name)}>{r.entry.name}</strong>{r.tieNote ? <small className="tie"> · {r.tieNote}</small> : ''}</td><td>{r.played}</td><td>{r.wins}</td><td>{r.losses}</td><td><b>{r.matchPoints}</b></td><td>{r.setsFor}:{r.setsAgainst}</td><td>{r.pointsFor}:{r.pointsAgainst}</td></tr>)}
-        </tbody></table></div></div>
+        <div><h3>Tabuľka</h3>
+          <GroupTable group={g} map={em} players={state.players}
+            onName={e => openCard(c.id, e.id, e.name)}
+            onMatch={m => openMatch({ kind: 'group', compId: c.id, groupId: g.id, matchId: m.id })} />
+        </div>
         </div>
         {(() => { const tts = tieTables(g, em); return tts.length > 0 ? <div className="minitables">
           {tts.map((rows, k) => <div className="minitable" key={k}><h4>Minitabuľka pri rovnosti — vzájomné zápasy</h4>
@@ -322,16 +325,39 @@ function Knockout({ state, update, label, openMatch, setNotice }: { state: Tourn
   if (!comps.length) return <Empty title="Žiadne pavúky" text="Najprv vytvor súťaž a skupiny." />;
   const renderBracket = (c: Competition, side: 'main' | 'consolation') => {
     const rounds = c.ko[side]; if (!rounds.length) return null;
-    return <div className="bracket">{rounds.map((r, ri) => <section className="bracket-round" key={r.id}>
-      <div className="br-head"><h3>{r.name}</h3>{r.kind !== 'third' && <BestOf value={r.bestOf} onChange={v => update(c.id, x => ({ ...x, ko: { ...x.ko, [side]: x.ko[side].map((y, i) => i === ri ? setRoundBestOf(y, v) : y) } }))} />}</div>
-      {r.matches.map(m => <MatchRow key={m.id} compact m={m} label={label} onClick={() => (m.playerAId && m.playerBId) && openMatch({ kind: 'ko', compId: c.id, side, roundIdx: ri, matchId: m.id })} />)}
-    </section>)}</div>;
+    const em = entryMap(c, state.players, state.pairs, state.teams);
+    const nm = (id: string | null) => (id ? em.get(id)?.name || '—' : '—');
+    const cl = (id: string | null) => (id ? em.get(id)?.club || '' : '');
+    const main = rounds.filter(r => r.kind !== 'third');
+    const third = rounds.find(r => r.kind === 'third');
+    const cell = (m: Match, ri: number) => {
+      const sc = m.winnerId ? scoreText(m).split(':') : null;
+      return <div className="kmatch" key={m.id} onClick={() => (m.playerAId && m.playerBId) && openMatch({ kind: 'ko', compId: c.id, side, roundIdx: ri, matchId: m.id })}>
+        <div className={`krow${m.winnerId === m.playerAId ? ' kwin' : ''}`}><span className="kname">{nm(m.playerAId)}<em>{cl(m.playerAId)}</em></span><b>{sc ? sc[0] : ''}</b></div>
+        <div className={`krow${m.winnerId === m.playerBId ? ' kwin' : ''}`}><span className="kname">{nm(m.playerBId)}<em>{cl(m.playerBId)}</em></span><b>{sc ? sc[1] : ''}</b></div>
+      </div>;
+    };
+    return <>
+      <div className="kbracket">{main.map((r, ri) => {
+        const last = ri === main.length - 1;
+        const pairs: Match[][] = [];
+        for (let i = 0; i < r.matches.length; i += 2) pairs.push(r.matches.slice(i, i + 2));
+        return <div className={`kround${last ? ' kround-last' : ''}`} key={r.id}>
+          <div className="br-head"><h4>{r.name}</h4><BestOf value={r.bestOf} onChange={v => update(c.id, x => ({ ...x, ko: { ...x.ko, [side]: x.ko[side].map((y, i) => y.id === r.id ? setRoundBestOf(y, v) : y) } }))} /></div>
+          <div className="kround-body">{pairs.map((pr, pi) => <div className={`kpair${pr.length < 2 || last ? ' kpair-solo' : ''}`} key={pi}>{pr.map(m => cell(m, rounds.indexOf(r)))}</div>)}</div>
+        </div>;
+      })}</div>
+      {third && third.matches.length > 0 && <div className="kthird"><h4>O 3. miesto</h4>
+        <div className="kround-body"><div className="kpair kpair-solo">{third.matches.map(m => cell(m, rounds.indexOf(third)))}</div></div></div>}
+    </>;
   };
   const renderPlayoff = (c: Competition, em: Map<string, GenericEntry>) => {
     if (!c.groups.length) return null;
     return <><h3 className="bracket-title">Play-off skupín (1‑2 o 1., 3‑4 o 3.)</h3>{c.groups.map(g => <div className="playoff-block" key={g.id}>
-      <div className="pb-head"><h3>{g.name}</h3>
-        <button className="button" onClick={() => update(c.id, x => ({ ...x, groups: x.groups.map(y => y.id === g.id ? { ...y, playoff: createGroupPlayoff(y, em) } : y) }))}>{g.playoff ? 'Obnoviť podľa poradia' : 'Vytvoriť play-off'}</button></div>
+      <div className="pb-head"><h3>{g.name}</h3><div className="row-actions">
+        <button className="button" onClick={() => update(c.id, x => ({ ...x, groups: x.groups.map(y => y.id === g.id ? { ...y, playoff: createGroupPlayoff(y, em) } : y) }))}>{g.playoff ? 'Obnoviť podľa poradia' : 'Vytvoriť play-off'}</button>
+        {g.playoff && <button className="button" onClick={() => { if (confirm('Zrušiť play-off tejto skupiny? Zapísané výsledky play-off sa stratia.')) update(c.id, x => ({ ...x, groups: x.groups.map(y => y.id === g.id ? { ...y, playoff: undefined } : y) })); }}>Zrušiť play-off</button>}
+      </div></div>
       {g.playoff && <div className="pb-matches">
         <div className="pb-match"><span className="pb-label">O 1. miesto</span><MatchRow m={g.playoff.final} label={label} onClick={() => openMatch({ kind: 'playoff', compId: c.id, groupId: g.id, slot: 'final' })} /></div>
         {g.playoff.third && <div className="pb-match"><span className="pb-label">O 3. miesto</span><MatchRow m={g.playoff.third} label={label} onClick={() => openMatch({ kind: 'playoff', compId: c.id, groupId: g.id, slot: 'third' })} /></div>}
@@ -342,8 +368,10 @@ function Knockout({ state, update, label, openMatch, setNotice }: { state: Tourn
     const em = entryMap(c, state.players, state.pairs, state.teams);
     const hasQual = c.groups.some(g => g.qualifiers > 0);
     const groupsDone = c.groups.length > 0 && c.groups.every(g => g.matches.every(m => m.winnerId));
+    const buildAll = () => update(c.id, x => { const groups = x.groups.map(g => ({ ...g, qualifiers: g.entryIds.length })); const nc = { ...x, groups }; return { ...nc, ko: createKnockout(nc, em) }; });
     return <section className="card form-card" key={c.id}><div className="card-header"><h2>{c.name}</h2><div className="row-actions">
-      {!c.ko.main.length && hasQual && <button className="button primary" onClick={() => { if (!c.groups.length) { setNotice('Najprv vytvor a dohraj skupiny.'); return; } if (!groupsDone && !confirm('Skupiny nie sú dohraté. Vytvoriť pavúk aj tak?')) return; update(c.id, x => ({ ...x, ko: createKnockout(x, em) })); }}><Wand2 size={16} />Vytvoriť pavúk z postupujúcich</button>}
+      {c.groups.length > 0 && <button className="button primary" onClick={() => { if (c.ko.main.length && !confirm('Prepísať pavúk zo všetkých hráčov v skupine? Zapísané výsledky pavúka sa stratia.')) return; buildAll(); }} title="Semifinále, finále a zápas o 3. miesto zo všetkých hráčov v skupine"><Wand2 size={16} />Pavúk zo všetkých v skupine</button>}
+      {!c.ko.main.length && hasQual && <button className="button" onClick={() => { if (!c.groups.length) { setNotice('Najprv vytvor a dohraj skupiny.'); return; } if (!groupsDone && !confirm('Skupiny nie sú dohraté. Vytvoriť pavúk aj tak?')) return; update(c.id, x => ({ ...x, ko: createKnockout(x, em) })); }}>Pavúk z postupujúcich</button>}
       {c.ko.main.length > 0 && <button className="button" onClick={() => update(c.id, x => ({ ...x, ko: createKnockout(x, em) }))}>Prežrebovať</button>}
       {c.ko.main.length > 0 && <button className="button" onClick={() => { if (confirm('Zrušiť pavúk? Zapísané výsledky pavúka sa stratia.')) update(c.id, x => ({ ...x, ko: { main: [], consolation: [] } })); }}>Zrušiť pavúk</button>}
     </div></div>
