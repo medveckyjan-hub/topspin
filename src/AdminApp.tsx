@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useLocation, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { Lock, Trophy, Link as LinkIcon, Eye, RotateCcw, Save, Home } from 'lucide-react';
+import { Trophy, Link as LinkIcon, Eye, RotateCcw, Save, Home } from 'lucide-react';
 import { TournamentEditor } from './App';
 import { deleteTournament, getTournament, isConflict, saveTournament, signOut, type Session } from './lib/supabase';
 import { AuthGate } from './components/AuthGate';
@@ -21,13 +21,11 @@ export function AdminApp() {
 
 function AdminInner({ session }: { session: Session }) {
   const { slug = '' } = useParams();
-  const loc = useLocation();
   const [unlocked, setUnlocked] = useState(true);
   const [initial, setInitial] = useState<TournamentState | null>(null);
   const [seed, setSeed] = useState(0);
   const [name, setName] = useState('');
   const [err, setErr] = useState('');
-  const [entry, setEntry] = useState('');
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [pending, setPending] = useState<Backup | null>(null);
   const [stale, setStale] = useState(false);
@@ -42,18 +40,23 @@ function AdminInner({ session }: { session: Session }) {
     catch (e) { alert('Zmazanie zlyhalo: ' + (e as Error).message); }
   };
 
-  const openWith = async (p: string) => {
+  /** Načíta turnaj hneď po vstupe — prístup už overil AuthGate. */
+  const openTournament = async () => {
     setErr('');
     try {
-      const ok = await verifyPin(slug, p); if (!ok) { setErr('Nesprávny PIN.'); return; }
-      const t = await getTournament(slug); if (!t) { setErr('Turnaj sa nenašiel.'); return; }
+      const t = await getTournament(slug);
+      if (!t) { setErr('Turnaj sa nenašiel.'); return; }
       const bk = readBackup(slug);
       if (bk && Date.now() - bk.at < 24 * 3600 * 1000 && JSON.stringify(bk.data) !== JSON.stringify(t.data)) setPending(bk);
       lastPushed.current = JSON.stringify(t.data); version.current = t.version;
-      setInitial(t.data); setName(t.name); setPin(p); setUnlocked(true);
+      setInitial(t.data); setName(t.name); setUnlocked(true);
     } catch (e) { setErr((e as Error).message); }
   };
-  useEffect(() => { setUnlocked(false); setInitial(null); setEntry(''); setSaveState('idle'); setPin(navPin || ''); if (navPin) openWith(navPin); /* eslint-disable-next-line */ }, [slug]);
+  useEffect(() => {
+    setUnlocked(false); setInitial(null); setSaveState('idle');
+    openTournament();
+    /* eslint-disable-next-line */
+  }, [slug]);
 
   const pushCloud = async (s: TournamentState) => {
     setSaveState('saving');
@@ -99,17 +102,16 @@ function AdminInner({ session }: { session: Session }) {
     const id = setInterval(() => { if (document.visibilityState === 'visible') refetch(true); }, 300000);
     return () => { document.removeEventListener('visibilitychange', onVis); clearInterval(id); };
     /* eslint-disable-next-line */
-  }, [unlocked, slug, pin]);
+  }, [unlocked, slug]);
   const restore = () => { if (!pending) return; setInitial(pending.data); setSeed(x => x + 1); setPending(null); pushCloud(pending.data); };
 
-  if (!unlocked) return <div className="public-shell"><header className="public-top"><Link className="brand-line" to="/"><img className="brand-logo-sm" src="/topspin.png" alt="TOPSPIN" /><strong>TOPSPIN</strong></Link><AuthBar /></header>
-    <main className="public-main"><section className="card form-card pin-card">
-      <h2><Lock size={18} /> Admin prístup</h2>
-      <p className="muted">Zadaj PIN turnaja na editáciu. Bez PIN sú výsledky len na čítanie.</p>
-      <div className="pin-row"><input placeholder="PIN" value={entry} onChange={e => setEntry(e.target.value)} onKeyDown={e => e.key === 'Enter' && openWith(entry)} type="password" />
-        <button className="button primary" onClick={() => openWith(entry)}>Odomknúť</button></div>
-      {err && <p className="match-error">{err}</p>}
-      <Link className="button" to={`/t/${slug}`}><Eye size={16} />Verejné výsledky</Link>
+  if (!unlocked) return <div className="public-shell">
+    <header className="public-top"><Link className="brand-line" to="/"><img className="brand-logo-sm" src="/topspin.png" alt="TOPSPIN" /><strong>TOPSPIN</strong></Link><AuthBar /></header>
+    <main className="public-main"><section className="card form-card">
+      {err ? <><h2>Turnaj sa nepodarilo otvoriť</h2><p className="match-error">{err}</p>
+        <div className="row-actions"><button className="button primary" onClick={openTournament}>Skúsiť znova</button>
+        <Link className="button" to={`/t/${slug}`}><Eye size={16} />Verejné výsledky</Link></div></>
+        : <p className="muted">Načítavam turnaj…</p>}
     </section></main></div>;
 
   const url = typeof window !== 'undefined' ? `${window.location.origin}/t/${slug}` : '';
