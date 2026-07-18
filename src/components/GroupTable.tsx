@@ -4,7 +4,7 @@ import type { GenericEntry, Match, Player, TournamentGroup } from '../types';
 const setScore = (m: Match): { a: number; b: number } => {
   if (m.result) return { a: m.result.a, b: m.result.b };
   let a = 0, b = 0;
-  m.sets.forEach(s => { if (s.a > s.b) a++; else if (s.b > s.a) b++; });
+  m.sets.forEach(s => { const x = s.a ?? 0, y = s.b ?? 0; if (x > y) a++; else if (y > x) b++; });
   return { a, b };
 };
 

@@ -6,7 +6,7 @@ import {
 import type { Competition, GenericEntry, Match, TeamEntry, TournamentGroup } from '../types';
 
 const gen = (ids: string[]) => new Map<string, GenericEntry>(ids.map((id, i) => [id, { id, name: id, club: '', rating: 100 - i, memberIds: [id] }]));
-const win = (id: string, a: string, b: string, aWins: boolean): Match => normalizeMatch({ id, round: 1, playerAId: a, playerBId: b, status: 'scheduled', specialResult: null, sets: aWins ? [{ a: 11, b: 1 }, { a: 11, b: 1 }, { a: 11, b: 1 }] : [{ a: 1, b: 11 }, { a: 1, b: 11 }, { a: 1, b: 11 }] }, 5);
+const win = (id: string, a: string, b: string, aWins: boolean): Match => normalizeMatch({ id, round: 1, playerAId: a, playerBId: b, status: 'scheduled', winnerId: null, specialResult: null, sets: aWins ? [{ a: 11, b: 1 }, { a: 11, b: 1 }, { a: 11, b: 1 }] : [{ a: 1, b: 11 }, { a: 1, b: 11 }, { a: 1, b: 11 }] }, 5);
 
 describe('multi-event core', () => {
   it('drží skupiny v rozsahu 3–12', () => { for (let n = 3; n < 100; n++) { const s = chooseGroupSizes(n, 5); expect(s.reduce((a, b) => a + b, 0)).toBe(n); expect(Math.min(...s)).toBeGreaterThanOrEqual(3); expect(Math.max(...s)).toBeLessThanOrEqual(12); } });
@@ -19,7 +19,7 @@ describe('multi-event core', () => {
     const map = gen(['a', 'b', 'c']);
     const g: TournamentGroup = { id: 'g', name: 'G', entryIds: ['a', 'b', 'c'], qualifiers: 2, bestOf: 5, matches: [
       win('1', 'a', 'b', true), win('2', 'b', 'c', true),
-      normalizeMatch({ id: '3', round: 1, playerAId: 'c', playerBId: 'a', status: 'scheduled', specialResult: null, sets: [{ a: 11, b: 9 }, { a: 9, b: 11 }, { a: 11, b: 9 }, { a: 9, b: 11 }, { a: 11, b: 9 }] }, 5)] };
+      normalizeMatch({ id: '3', round: 1, playerAId: 'c', playerBId: 'a', status: 'scheduled', winnerId: null, specialResult: null, sets: [{ a: 11, b: 9 }, { a: 9, b: 11 }, { a: 11, b: 9 }, { a: 9, b: 11 }, { a: 11, b: 9 }] }, 5)] };
     const st = standings(g, map);
     expect(st.every(r => r.matchPoints === 3)).toBe(true);
     expect(st[0].entry.id).toBe('a'); expect(st[2].entry.id).toBe('c');

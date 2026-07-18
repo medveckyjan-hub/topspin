@@ -7,7 +7,7 @@ export type Side = { name: string; club: string; photo?: string };
 const setScore = (m: Match): { a: number; b: number } => {
   if (m.result) return { a: m.result.a, b: m.result.b };
   let a = 0, b = 0;
-  m.sets.forEach(s => { if (s.a > s.b) a++; else if (s.b > s.a) b++; });
+  m.sets.forEach(s => { const x = s.a ?? 0, y = s.b ?? 0; if (x > y) a++; else if (y > x) b++; });
   return { a, b };
 };
 
@@ -48,8 +48,8 @@ export function MatchOverview({ tournament, competition, event, groupName, date,
 
     {sets.length > 0 && <div className="mo-sets">
       {sets.map((x, i) => <div className="mo-set" key={i}><span className="mo-set-h">SET {i + 1}</span>
-        <div className={x.a > x.b ? 'mo-set-v mo-set-win' : 'mo-set-v'}>{x.a}</div>
-        <div className={x.b > x.a ? 'mo-set-v mo-set-win' : 'mo-set-v'}>{x.b}</div>
+        <div className={(x.a ?? 0) > (x.b ?? 0) ? 'mo-set-v mo-set-win' : 'mo-set-v'}>{x.a ?? 0}</div>
+        <div className={(x.b ?? 0) > (x.a ?? 0) ? 'mo-set-v mo-set-win' : 'mo-set-v'}>{x.b ?? 0}</div>
       </div>)}
     </div>}
   </div></div>;

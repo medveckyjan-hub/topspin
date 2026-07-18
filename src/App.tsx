@@ -292,15 +292,7 @@ function Groups({ state, update, setNotice }: { state: TournamentState; update: 
   return <div className="matches-stack">{comps.map(c => {
     const em = entryMap(c, state.players, state.pairs, state.teams);
     return <section className="card form-card" key={c.id}><h2>{c.name}</h2>
-      {c.finalGroup && <div className="group-block final-block">
-        <div className="pb-head"><h3>Finálová skupina — určuje konečné poradie</h3></div>
-        <div className="match-layout">
-          <div>{c.finalGroup.matches.map(m => <MatchRow key={m.id} m={m} label={label} onClick={() => openMatch({ kind: 'final', compId: c.id, matchId: m.id })} />)}</div>
-          <div><h3>Tabuľka</h3><GroupTable group={c.finalGroup} map={em} players={state.players}
-            onName={e => openCard(c.id, e.id, e.name)}
-            onMatch={m => openMatch({ kind: 'final', compId: c.id, matchId: m.id })} /></div>
-        </div>
-      </div>}<div className="group-grid">{c.groups.map(g => <div className="group-mini" key={g.id}>
+      <div className="group-grid">{c.groups.map(g => <div className="group-mini" key={g.id}>
       <div className="group-mini-head"><h3>{g.name}</h3><BestOf value={g.bestOf} onChange={v => update(c.id, x => ({ ...x, groups: x.groups.map(y => y.id === g.id ? setGroupBestOf(y, v) : y) }))} /></div>
       {g.entryIds.map((id, i) => <div className="group-player" key={id}><span className="seed">{i + 1}</span><span className="gp-name">{em.get(id)?.name}</span>
         <select value={g.id} onChange={e => { const chk = canMovePlayer(c.groups, id, e.target.value); if (!chk.ok) { setNotice(chk.message || 'Presun nie je možný.'); return; } update(c.id, x => ({ ...x, groups: movePlayer(x.groups, id, e.target.value), ko: { main: [], consolation: [] } })); }}>
@@ -316,7 +308,18 @@ function Results({ state, update, label, openMatch, openCard }: { state: Tournam
   if (!comps.length) return <Empty title="Žiadne výsledky" text="Najprv vytvor skupiny." />;
   return <div className="matches-stack">{comps.map(c => {
     const em = entryMap(c, state.players, state.pairs, state.teams);
-    return <section className="card match-card" key={c.id}><h2>{c.name}</h2>{c.groups.map(g => {
+    const fg = c.finalGroup;
+    return <section className="card match-card" key={c.id}><h2>{c.name}</h2>
+      {fg && <div className="group-block final-block">
+        <div className="pb-head"><h3>Finálová skupina — určuje konečné poradie</h3></div>
+        <div className="match-layout">
+          <div>{fg.matches.map(m => <MatchRow key={m.id} m={m} label={label} onClick={() => openMatch({ kind: 'final', compId: c.id, matchId: m.id })} />)}</div>
+          <div><h3>Tabuľka</h3><GroupTable group={fg} map={em} players={state.players}
+            onName={e => openCard(c.id, e.id, e.name)}
+            onMatch={m => openMatch({ kind: 'final', compId: c.id, matchId: m.id })} /></div>
+        </div>
+      </div>}
+      {c.groups.map(g => {
       const st = standings(g, em); const done = g.matches.filter(m => m.winnerId).length;
       return <div className="group-block" key={g.id}>
         <div className="match-layout">

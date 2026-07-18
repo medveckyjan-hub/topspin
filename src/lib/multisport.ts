@@ -1,8 +1,7 @@
 import type {
   Competition, GenericEntry, Knockout, KnockoutRound, Match, PairEntry, Player,
   SetScore, StandingRow, TeamEntry, TeamNomination, TeamRubber, TeamSystem, TeamSystemId,
-  TeamTie, TournamentGroup,
-} from '../types';
+  TeamTie, TournamentGroup, FinalRow } from '../types';
 
 export const uid = () => crypto.randomUUID();
 export const emptySets = (bestOf: number): SetScore[] => Array.from({ length: bestOf }, () => ({ a: null, b: null }));

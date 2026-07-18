@@ -63,16 +63,17 @@ function TableInner() {
   const applyMatch = async (row: Row, updated: Match) => {
     if (!data) return;
     const next: TournamentState = structuredClone(data);
-    const c = next.competitions.find(x => x.id === row.slot.compId)!;
-    if (row.slot.kind === 'group') {
-      const g = c.groups.find(x => x.id === row.slot.groupId)!;
-      g.matches = g.matches.map(m => (m.id === row.slot.matchId ? updated : m));
-    } else if (row.slot.kind === 'playoff') {
-      const g = c.groups.find(x => x.id === row.slot.groupId)!;
-      if (g.playoff) g.playoff = { ...g.playoff, [row.slot.slot]: updated } as typeof g.playoff;
+    const slot = row.slot;
+    const c = next.competitions.find(x => x.id === slot.compId)!;
+    if (slot.kind === 'group') {
+      const g = c.groups.find(x => x.id === slot.groupId)!;
+      g.matches = g.matches.map(m => (m.id === slot.matchId ? updated : m));
+    } else if (slot.kind === 'playoff') {
+      const g = c.groups.find(x => x.id === slot.groupId)!;
+      if (g.playoff) g.playoff = { ...g.playoff, [slot.slot]: updated } as typeof g.playoff;
     } else {
-      const r = c.ko[row.slot.side][row.slot.roundIdx];
-      r.matches = r.matches.map(m => (m.id === row.slot.matchId ? updated : m));
+      const r = c.ko[slot.side][slot.roundIdx];
+      r.matches = r.matches.map(m => (m.id === slot.matchId ? updated : m));
     }
     setData(next);
     setState('saving');
@@ -112,9 +113,14 @@ function TableInner() {
 function ScoreSheet({ row, onClose, onSave }: { row: Row; onClose: () => void; onSave: (m: Match) => void }) {
   const need = setsToWin(row.bestOf);
   const [sets, setSets] = useState(() => row.m.sets.map(s => ({ ...s })));
+  const num = (v: number | null) => v ?? 0;
   const bump = (i: number, side: 'a' | 'b', d: number) =>
-    setSets(cur => cur.map((s, j) => (j === i ? { ...s, [side]: Math.max(0, (side === 'a' ? s.a : s.b) + d) } : s)));
-  const won = sets.reduce((acc, s) => { if (s.a > s.b) acc.a++; else if (s.b > s.a) acc.b++; return acc; }, { a: 0, b: 0 });
+    setSets(cur => cur.map((s, j) => (j === i ? { ...s, [side]: Math.max(0, num(side === 'a' ? s.a : s.b) + d) } : s)));
+  const won = sets.reduce((acc, s) => {
+    const a = num(s.a), b = num(s.b);
+    if (a > b) acc.a++; else if (b > a) acc.b++;
+    return acc;
+  }, { a: 0, b: 0 });
   const finished = won.a >= need || won.b >= need;
 
   return <div className="tbl-shell sheet">
@@ -131,12 +137,12 @@ function ScoreSheet({ row, onClose, onSave }: { row: Row; onClose: () => void; o
         <span className="sheet-lab">Set {i + 1}</span>
         <div className="sheet-ctrl">
           <button onClick={() => bump(i, 'a', -1)}><Minus size={18} /></button>
-          <b>{s.a}</b>
+          <b>{num(s.a)}</b>
           <button onClick={() => bump(i, 'a', 1)}><Plus size={18} /></button>
         </div>
         <div className="sheet-ctrl">
           <button onClick={() => bump(i, 'b', -1)}><Minus size={18} /></button>
-          <b>{s.b}</b>
+          <b>{num(s.b)}</b>
           <button onClick={() => bump(i, 'b', 1)}><Plus size={18} /></button>
         </div>
       </div>)}
