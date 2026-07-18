@@ -498,3 +498,6 @@ tr.gt-second td{background:#f7f9fb}
 .t-main{display:flex;align-items:center;gap:12px;color:#e62834}
 .t-main strong{display:block;font-size:.98rem;color:#172033}
 .t-main span{font-size:.76rem;color:#7b8798}
+.err-detail{width:100%;text-align:left;margin-top:8px}
+.err-detail summary{font-size:.78rem;color:#8a95a4;cursor:pointer}
+.err-detail code{display:block;margin-top:8px;background:#f4f6f8;border-radius:8px;padding:10px;font-size:.76rem;color:#c72834;word-break:break-word}

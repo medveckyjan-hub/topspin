@@ -17,11 +17,35 @@ export async function listTournaments(): Promise<TournamentListItem[]> {
 }
 
 /** Verejné načítanie jedného turnaja (bez PIN). */
+
+/** Doplní chýbajúce časti turnaja. Nový turnaj má v databáze prázdne dáta,
+ *  takže bez tohto by stránka spadla na bielu obrazovku. */
+export function normalizeState(raw: unknown, name = 'Turnaj'): TournamentState {
+  const d = (raw && typeof raw === 'object' ? raw : {}) as Partial<TournamentState>;
+  const s = (d.settings ?? {}) as Partial<TournamentState['settings']>;
+  return {
+    version: 5,
+    settings: {
+      name: s.name || name,
+      date: s.date || new Date().toISOString().slice(0, 10),
+      venue: s.venue ?? '',
+      tables: s.tables ?? 8,
+      matchMinutes: s.matchMinutes ?? 20,
+      restMinutes: s.restMinutes ?? 5,
+      startTime: s.startTime ?? '09:00',
+    },
+    players: Array.isArray(d.players) ? d.players : [],
+    pairs: Array.isArray(d.pairs) ? d.pairs : [],
+    teams: Array.isArray(d.teams) ? d.teams : [],
+    competitions: Array.isArray(d.competitions) ? d.competitions : [],
+  } as TournamentState;
+}
+
 export async function getTournament(slug: string): Promise<{ name: string; slug: string; data: TournamentState; version: number } | null> {
   const { data, error } = await supabase.rpc('topspin_get_tournament', { p_slug: slug });
   if (error) throw error;
   const row = Array.isArray(data) ? data[0] : data;
-  return row ? { name: row.name, slug: row.slug, data: row.data as TournamentState, version: Number(row.version ?? 0) } : null;
+  return row ? { name: row.name, slug: row.slug, data: normalizeState(row.data, row.name), version: Number(row.version ?? 0) } : null;
 }
 
 /** Založenie turnaja – gated tajným admin kódom; vracia slug. */
@@ -32,12 +56,6 @@ export async function createTournament(name: string): Promise<string> {
 }
 
 
-/** Overenie PIN pre admin prístup k turnaju. */
-export async function verifyPin(slug: string, pin: string): Promise<boolean> {
-  const { data, error } = await supabase.rpc('topspin_verify_pin', { p_slug: slug, p_pin: pin });
-  if (error) throw error;
-  return data === true;
-}
 
 /** Uloženie stavu turnaja – server overí PIN. */
 /** Uloženie s kontrolou verzie. Ak medzitým uložil niekto iný, server vráti CONFLICT
@@ -235,11 +253,6 @@ export async function canEdit(slug: string): Promise<boolean> {
   return data === true;
 }
 
-/** Jednorazové prevzatie staršieho turnaja pomocou pôvodného PINu. */
-export async function claimTournament(slug: string, pin: string): Promise<void> {
-  const { error } = await supabase.rpc('topspin_claim_tournament', { p_slug: slug, p_pin: pin });
-  if (error) throw error;
-}
 
 // ---------- pozvaní používatelia ----------
 export type AccessRow = { email: string; role: string; created_at: string };

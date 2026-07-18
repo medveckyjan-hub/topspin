@@ -88,7 +88,7 @@ export function PublicView() {
   const EXTRA = ['harmonogram', 'registracia', 'propozicie', 'galeria', 'videa'];
   const activeComp: Competition | undefined = EXTRA.includes(tab)
     ? undefined
-    : (data.competitions.find(c => c.id === tab) ?? data.competitions[0]);
+    : ((data.competitions ?? []).find(c => c.id === tab) ?? (data.competitions ?? [])[0]);
 
   const bracketRounds = (rounds: KnockoutRound[], c: Competition, em: Map<string, GenericEntry>) => {
     const main = rounds.filter(r => r.kind !== 'third');
@@ -130,7 +130,7 @@ export function PublicView() {
         ['videa', 'Videá', <Video size={15} key="i" />, vids.length > 0],
       ];
       return <nav className="pub-tabs">
-        {data.competitions.map(c => <button key={c.id} className={`pub-tab${activeComp?.id === c.id ? ' active' : ''}`}
+        {(data.competitions ?? []).map(c => <button key={c.id} className={`pub-tab${activeComp?.id === c.id ? ' active' : ''}`}
           onClick={() => { setTab(c.id); setSec(defaultSection(c)); }}><Trophy size={15} />{c.name}</button>)}
         {extra.filter(t => t[3]).map(([k, lbl, ic]) =>
           <button key={k} className={`pub-tab${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>{ic}{lbl}</button>)}
@@ -167,7 +167,7 @@ export function PublicView() {
         <div className="vid-frame"><iframe src={embedUrl(x.url)} title={x.title || 'Video'} allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture" allowFullScreen loading="lazy" /></div></div>)}</div>
     </section>}
 
-    {activeComp && data.competitions.length === 0 && <p className="muted">Turnaj sa pripravuje.</p>}
+    {activeComp && (data.competitions ?? []).length === 0 && <p className="muted">Turnaj sa pripravuje.</p>}
 
     {activeComp && (() => {
       const c = activeComp;
@@ -251,7 +251,7 @@ export function PublicView() {
     })()}
 
     {tab === 'harmonogram' && (() => {
-      const rows = data.competitions.flatMap(c => {
+      const rows = (data.competitions ?? []).flatMap(c => {
         const em = entryMap(c, data.players, data.pairs, data.teams);
         const lab = (id: string | null) => (id ? em.get(id)?.name || '—' : '—');
         return [
@@ -281,7 +281,7 @@ export function PublicView() {
       return <MatchOverview tournament={name} competition={mo.comp.name} event={mo.event} groupName={mo.groupName}
         date={data.settings.date} table={mo.m.table ?? null} matchNo={mo.matchNo}
         a={side(A)} b={side(B)} m={mo.m} onClose={() => setMo(null)} />; })()}
-    {regOpen && <RegistrationForm slug={slug} tournament={name} categories={data.competitions.map(c => c.name)}
+    {regOpen && <RegistrationForm slug={slug} tournament={name} categories={(data.competitions ?? []).map(c => c.name)}
       onClose={() => setRegOpen(false)} onDone={() => { setRegOpen(false); setRegDone(true); loadExtras(); }} />}
     {card && <EntryCard competition={card.comp} entryId={card.entryId} name={card.name} label={label} avatar={data.players.find(p => p.id === card.entryId)?.photo} onClose={() => setCard(null)} />}
   </Shell>;

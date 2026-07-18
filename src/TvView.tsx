@@ -39,7 +39,7 @@ export function TvView() {
   const slides = useMemo<Slide[]>(() => {
     if (!data) return [];
     const out: Slide[] = [{ kind: 'live' }];
-    data.competitions.forEach(c => {
+    (data.competitions ?? []).forEach(c => {
       c.groups.forEach(g => out.push({ kind: 'group', compId: c.id, groupId: g.id }));
       if (c.ko.main.length) out.push({ kind: 'bracket', compId: c.id });
     });
@@ -66,13 +66,13 @@ export function TvView() {
   if (!data) return <div className="tv tv-load"><h1>TOPSPIN</h1><p>Načítavam…</p></div>;
 
   const slide = slides[Math.min(idx, slides.length - 1)] ?? { kind: 'live' as const };
-  const comp = 'compId' in slide ? data.competitions.find(c => c.id === slide.compId) : undefined;
+  const comp = 'compId' in slide ? (data.competitions ?? []).find(c => c.id === slide.compId) : undefined;
   const em = comp ? entryMap(comp, data.players, data.pairs, data.teams) : null;
   const nm = (id: string | null) => (id && em ? em.get(id)?.name || '—' : '—');
   const cl = (id: string | null) => (id && em ? em.get(id)?.club || '' : '');
   const url = typeof window !== 'undefined' ? `${window.location.origin}/t/${slug}` : '';
 
-  const liveRows = data.competitions.flatMap(c => {
+  const liveRows = (data.competitions ?? []).flatMap(c => {
     const m2 = entryMap(c, data.players, data.pairs, data.teams);
     const label = (id: string | null) => (id ? m2.get(id)?.name || '—' : '—');
     const all: { phase: string; m: Match }[] = [
@@ -84,7 +84,7 @@ export function TvView() {
       .map(x => ({ comp: c.name, phase: x.phase, m: x.m, label }));
   }).sort((a, b) => (a.m.table ?? 0) - (b.m.table ?? 0));
 
-  const recent = data.competitions.flatMap(c => {
+  const recent = (data.competitions ?? []).flatMap(c => {
     const m2 = entryMap(c, data.players, data.pairs, data.teams);
     const label = (id: string | null) => (id ? m2.get(id)?.name || '—' : '—');
     return [

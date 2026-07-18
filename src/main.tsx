@@ -5,13 +5,14 @@ import { Home } from './Home';
 import { PublicView } from './PublicView';
 import { AdminApp } from './AdminApp';
 import { Manage } from './Manage';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { TvView } from './TvView';
 import { TableView } from './TableView';
 import './styles.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
+    <ErrorBoundary><BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/t/:slug" element={<PublicView />} />
@@ -20,6 +21,6 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/t/:slug/tv" element={<TvView />} />
         <Route path="/t/:slug/stol" element={<TableView />} />
       </Routes>
-    </BrowserRouter>
+    </BrowserRouter></ErrorBoundary>
   </StrictMode>
 );
