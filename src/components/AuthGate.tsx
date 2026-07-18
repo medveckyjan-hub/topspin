@@ -1,17 +1,24 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { LogIn, LogOut, Mail } from 'lucide-react';
-import { canEdit, claimTournament, getSession, onAuth, signOut, type Session } from '../lib/supabase';
-import { LoginModal } from './AuthBar';
+import { LogOut } from 'lucide-react';
+import { canEdit, getSession, onAuth, signOut, type Session } from '../lib/supabase';
+import { AuthBar } from './AuthBar';
+
+function Frame({ children }: { children: React.ReactNode }) {
+  return <div className="public-shell">
+    <header className="public-top">
+      <Link className="brand-line" to="/"><img className="brand-logo-sm" src="/topspin.png" alt="TOPSPIN" /><strong>TOPSPIN</strong></Link>
+      <AuthBar />
+    </header>
+    <main className="public-main"><div className="login-box gate">{children}</div></main>
+  </div>;
+}
 
 /** Obal, ktorý pustí ďalej len prihláseného používateľa s prístupom k turnaju. */
 export function AuthGate({ slug, children, note }: { slug?: string; children: (s: Session) => React.ReactNode; note?: string }) {
   const [session, setSession] = useState<Session>(null);
   const [ready, setReady] = useState(false);
   const [allowed, setAllowed] = useState<boolean | null>(null);
-  const [pin, setPin] = useState('');
-  const [claimErr, setClaimErr] = useState('');
-  const [showLogin, setShowLogin] = useState(false);
 
   useEffect(() => {
     getSession().then(s => { setSession(s); setReady(true); });
@@ -23,33 +30,21 @@ export function AuthGate({ slug, children, note }: { slug?: string; children: (s
     canEdit(slug).then(setAllowed);
   }, [session, slug]);
 
-  const claim = async () => {
-    setClaimErr('');
-    try { await claimTournament(slug!, pin); setAllowed(await canEdit(slug!)); }
-    catch (e) { setClaimErr((e as Error).message); }
-  };
+  if (!ready) return <Frame><p className="muted">Načítavam…</p></Frame>;
 
-  if (!ready) return <div className="login-shell"><p className="muted">Načítavam…</p></div>;
-  if (!session) return <div className="login-shell"><div className="login-box">
-    <img src="/topspin.png" alt="TOPSPIN" />
-    <h1>Prihlásenie</h1>
-    <p>{note || 'Na správu turnaja sa prihlás svojím e-mailom.'}</p>
-    <button className="button primary" onClick={() => setShowLogin(true)}>Prihlásiť sa</button>
+  if (!session) return <Frame>
+    <h1>Prihlásenie je potrebné</h1>
+    <p>{note || 'Na správu turnaja sa prihlás tlačidlom'} <b>Prihlásiť sa</b> vpravo hore.</p>
     <Link className="link-btn" to="/">Späť na turnaje</Link>
-    {showLogin && <LoginModal onClose={() => setShowLogin(false)} note={note} />}
-  </div></div>;
+  </Frame>;
 
-  if (slug && allowed === false) return <div className="login-shell"><div className="login-box">
+  if (slug && allowed === false) return <Frame>
     <h1>Nemáš prístup</h1>
-    <p>Si prihlásený ako <strong>{session.email}</strong>, ale tento turnaj patrí niekomu inému.</p>
-    <p className="field-hint">Ak je to tvoj starší turnaj, prevezmi ho zadaním pôvodného PINu — spraví sa to len raz.</p>
-    <input placeholder="Pôvodný PIN turnaja" value={pin} onChange={e => setPin(e.target.value)} onKeyDown={e => e.key === 'Enter' && claim()} />
-    <button className="button primary" onClick={claim}>Prevziať turnaj</button>
-    {claimErr && <p className="match-error">{claimErr}</p>}
-    <button className="link-btn" onClick={() => signOut()}><LogOut size={13} />Prihlásiť sa iným e-mailom</button>
+    <p>Si prihlásený ako <strong>{session.email}</strong>, ale k tomuto turnaju nemáš oprávnenie. Požiadaj správcu turnaja, aby ti prístup pridelil.</p>
+    <button className="link-btn" onClick={() => signOut()}><LogOut size={13} />Odhlásiť sa</button>
     <Link className="link-btn" to="/">Späť na turnaje</Link>
-  </div></div>;
+  </Frame>;
 
-  if (slug && allowed === null) return <div className="login-shell"><p className="muted">Overujem prístup…</p></div>;
+  if (slug && allowed === null) return <Frame><p className="muted">Overujem prístup…</p></Frame>;
   return <>{children(session)}</>;
 }

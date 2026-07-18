@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { LogIn, LogOut, Mail, User, X } from 'lucide-react';
-import { getSession, onAuth, sendLoginLink, signOut, type Session } from '../lib/supabase';
+import { LogIn, LogOut, User, X } from 'lucide-react';
+import { getSession, onAuth, signInWithPassword, signOut, type Session } from '../lib/supabase';
 
 /** Prihlásenie v hornej lište — dostupné z každej stránky.
  *  Neprihlásený vidí tlačidlo „Prihlásiť sa", prihlásený svoj e-mail. */
@@ -30,33 +30,35 @@ export function AuthBar() {
   </div>;
 }
 
-/** Okno s prihlásením e-mailom (bez hesla). */
+/** Okno s prihlásením — e-mail a heslo. */
 export function LoginModal({ onClose, note }: { onClose: () => void; note?: string }) {
   const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
+  const [pass, setPass] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
   const send = async () => {
     setErr('');
     if (!email.includes('@')) return setErr('Zadaj platný e-mail.');
+    if (!pass) return setErr('Zadaj heslo.');
     setBusy(true);
-    try { await sendLoginLink(email); setSent(true); }
-    catch (e) { setErr((e as Error).message); }
-    setBusy(false);
+    try { await signInWithPassword(email, pass); onClose(); }
+    catch (e) {
+      const msg = String((e as Error).message || '');
+      setErr(/invalid login credentials/i.test(msg) ? 'Nesprávny e-mail alebo heslo.' : msg);
+      setBusy(false);
+    }
   };
 
   return <div className="modal-backdrop" onClick={onClose}><div className="modal auth-modal" onClick={e => e.stopPropagation()}>
     <div className="modal-head"><h2>Prihlásenie</h2><button className="icon-button" onClick={onClose}><X /></button></div>
     <div className="auth-modal-body">
-      <p>{note || 'Zadaj svoj e-mail. Pošleme ti odkaz, ktorým sa prihlásiš — žiadne heslo si nemusíš pamätať.'}</p>
-      {sent ? <div className="login-sent"><Mail size={20} />
-        <div><strong>Odkaz je na ceste</strong><span>Skontroluj schránku {email} aj priečinok Spam a klikni na odkaz.</span></div>
-      </div> : <>
-        <input type="email" placeholder="tvoj@email.sk" value={email} autoComplete="email" autoFocus
-          onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()} />
-        <button className="button primary" disabled={busy} onClick={send}><LogIn size={16} />{busy ? 'Odosielam…' : 'Poslať prihlasovací odkaz'}</button>
-      </>}
+      {note && <p>{note}</p>}
+      <input type="email" placeholder="E-mail" value={email} autoComplete="username" autoFocus
+        onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()} />
+      <input type="password" placeholder="Heslo" value={pass} autoComplete="current-password"
+        onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()} />
+      <button className="button primary" disabled={busy} onClick={send}><LogIn size={16} />{busy ? 'Prihlasujem…' : 'Prihlásiť sa'}</button>
       {err && <p className="match-error">{err}</p>}
     </div>
   </div></div>;

@@ -488,3 +488,4 @@ tr.gt-second td{background:#f7f9fb}
 .auth-modal-body .button{justify-content:center}
 .tbl-right{display:flex;align-items:center;gap:8px}
 @media(max-width:560px){.auth-mail{max-width:110px}}
+.login-box.gate{margin:40px auto}

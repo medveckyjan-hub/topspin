@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { Settings, Link as LinkIcon, UserPlus, FileText, Images, Video, Plus, Trophy, CalendarClock } from 'lucide-react';
+import { Link as LinkIcon, UserPlus, FileText, Images, Video, Plus, Trophy, CalendarClock } from 'lucide-react';
 import { EntryCard } from './components/EntryCard';
 import { GroupTable } from './components/GroupTable';
 import { MatchOverview, type Side } from './components/MatchOverview';
@@ -276,7 +276,6 @@ export function PublicView() {
       </section>;
     })()}
 
-    <div className="pub-foot"><Link className="button" to={`/t/${slug}/admin`}><Settings size={16} />Spravovať (PIN)</Link></div>
     {mo && (() => { const A = mo.em.get(mo.m.playerAId || ''), B = mo.em.get(mo.m.playerBId || '');
       const side = (e?: GenericEntry): Side => ({ name: e?.name || '—', club: e?.club || '', photo: data.players.find(p => p.id === e?.id)?.photo });
       return <MatchOverview tournament={name} competition={mo.comp.name} event={mo.event} groupName={mo.groupName}

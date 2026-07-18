@@ -207,12 +207,15 @@ export function onAuth(cb: (s: Session) => void): () => void {
   return () => data.subscription.unsubscribe();
 }
 
-/** Pošle prihlasovací odkaz na e-mail (bez hesla). */
-export async function sendLoginLink(email: string, redirectTo?: string): Promise<void> {
-  const { error } = await supabase.auth.signInWithOtp({
-    email: email.trim(),
-    options: { emailRedirectTo: redirectTo || window.location.href },
-  });
+/** Prihlásenie e-mailom a heslom. */
+export async function signInWithPassword(email: string, password: string): Promise<void> {
+  const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+  if (error) throw error;
+}
+
+/** Zmena vlastného hesla (pre prihláseného používateľa). */
+export async function changePassword(password: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password });
   if (error) throw error;
 }
 
