@@ -35,24 +35,10 @@ export function Home() {
     <main className="public-main">
       {!cloudReady && <div className="cloud-warn">Chýba pripojenie na Supabase. Nastav <code>VITE_SUPABASE_URL</code> a <code>VITE_SUPABASE_ANON_KEY</code>.</div>}
 
-      {authReady && !session && <section className="card form-card">
-        <h2>Turnaje</h2>
-        <p className="hint">Výsledky si pozrie ktokoľvek. Na zakladanie a správu turnajov sa prihlás tlačidlom <b>Prihlásiť sa</b> vpravo hore.</p>
-      </section>}
-
-      {session && !mayCreate && <section className="card form-card">
-        <h2>Turnaje</h2>
-        <p className="hint">Tvoj e-mail nemá povolenie zakladať turnaje. Ak ti správca pridelil prístup ku konkrétnemu turnaju, nájdeš ho v zozname nižšie.</p>
-      </section>}
-
-      {session && mayCreate && <section className="card form-card create-card">
-        <h2><Plus size={18} /> Nový turnaj</h2>
-        <div className="create-grid">
-          <input placeholder="Názov turnaja" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && create()} />
-          <button className="button primary" disabled={busy || !cloudReady} onClick={create}>{busy ? 'Zakladám…' : 'Založiť a spravovať'}</button>
-        </div>
-        <p className="hint"><ShieldCheck size={14} /> Turnaj bude patriť tvojmu e-mailu. Výsledky uvidí každý cez odkaz alebo QR.</p>
-        {err && <p className="match-error">{err}</p>}
+      {session && mayCreate && <section className="card form-card">
+        <div className="card-header"><h2>Správa turnajov</h2>
+          <Link className="button primary" to="/sprava"><Plus size={16} />Moje turnaje a zakladanie</Link></div>
+        <p className="hint">Turnaje sa zakladajú a spravujú v sekcii Správa turnajov.</p>
       </section>}
 
       <section className="card form-card">

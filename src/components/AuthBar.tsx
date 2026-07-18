@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { LogIn, LogOut, User, X } from 'lucide-react';
+import { LayoutGrid, LogIn, LogOut, User, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { getSession, onAuth, signInWithPassword, signOut, type Session } from '../lib/supabase';
 
 /** Prihlásenie v hornej lište — dostupné z každej stránky.
@@ -25,6 +26,7 @@ export function AuthBar() {
     </button>
     {menu && <div className="auth-menu" onMouseLeave={() => setMenu(false)}>
       <span className="auth-menu-mail">{session.email}</span>
+      <Link to="/sprava" onClick={() => setMenu(false)}><LayoutGrid size={14} />Správa turnajov</Link>
       <button onClick={() => { setMenu(false); signOut(); }}><LogOut size={14} />Odhlásiť sa</button>
     </div>}
   </div>;

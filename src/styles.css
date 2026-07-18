@@ -489,3 +489,12 @@ tr.gt-second td{background:#f7f9fb}
 .tbl-right{display:flex;align-items:center;gap:8px}
 @media(max-width:560px){.auth-mail{max-width:110px}}
 .login-box.gate{margin:40px auto}
+
+/* ============ správa turnajov ============ */
+.auth-menu a{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border-radius:9px;font-size:.85rem;font-weight:600;color:#2a3547;text-decoration:none}
+.auth-menu a:hover{background:#f4f6f8;color:#e62834}
+.t-list{display:grid;gap:10px}
+.t-row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;border:1px solid #e4e9ee;border-radius:14px;padding:14px 16px}
+.t-main{display:flex;align-items:center;gap:12px;color:#e62834}
+.t-main strong{display:block;font-size:.98rem;color:#172033}
+.t-main span{font-size:.76rem;color:#7b8798}
