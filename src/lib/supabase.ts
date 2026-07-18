@@ -109,7 +109,8 @@ export async function listPlayers(): Promise<DbPlayer[]> {
 export type Registration = {
   id: string; first_name: string; last_name: string; club: string;
   birth_year: number | null; license_until: string | null; country: string;
-  gender: string; categories: string[]; email?: string | null; note?: string | null; created_at: string;
+  gender: string; categories: string[]; email?: string | null; note?: string | null;
+  checked_in?: boolean; paid?: boolean; created_at: string;
 };
 export type RegistrationInput = {
   first: string; last: string; club: string; year: number | null; license: string | null;
@@ -187,4 +188,10 @@ export function embedUrl(url: string): string {
   const vm = url.match(/vimeo\.com\/(\d+)/);
   if (vm) return `https://player.vimeo.com/video/${vm[1]}`;
   return url;
+}
+
+/** Prezencia a zaplatené štartovné. */
+export async function setRegistrationFlags(slug: string, pin: string, id: string, checked: boolean | null, paid: boolean | null): Promise<void> {
+  const { error } = await supabase.rpc('topspin_set_registration_flags', { p_slug: slug, p_pin: pin, p_id: id, p_checked: checked, p_paid: paid });
+  if (error) throw error;
 }

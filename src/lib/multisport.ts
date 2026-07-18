@@ -407,6 +407,10 @@ export function autoSchedule(competitions: Competition[], tables: number, start 
     const all = copy.flatMap(c => c.groups.flatMap(g => g.matches.map(m => ({ m })))).sort((a, b) => a.m.round - b.m.round);
     for (const { m } of all) { if (!m.playerAId || !m.playerBId) { clear(m); continue; } floor = Math.max(floor, place(m, base)); }
   }
+  if (doGroups) {
+    const fin = copy.flatMap(c => (c.finalGroup ? c.finalGroup.matches : [])).sort((a, b) => a.round - b.round);
+    for (const m of fin) { if (!m.playerAId || !m.playerBId) { clear(m); continue; } floor = Math.max(floor, place(m, floor)); }
+  }
   if (doPlayoff) {
     const pos = copy.flatMap(c => c.groups.flatMap(g => g.playoff ? [g.playoff.final, ...(g.playoff.third ? [g.playoff.third] : [])] : []));
     for (const m of pos) { if (!m.playerAId || !m.playerBId) { clear(m); continue; } floor = Math.max(floor, place(m, floor)); }
@@ -521,6 +525,11 @@ export function finalOrder(c: Competition, map: Map<string, GenericEntry>): Fina
   const put = (id: string | null, place: number, label: string) => { if (!id) return; const e = map.get(id); if (e && !placed.has(id)) { rows.push({ entry: e, place, placeLabel: label }); placed.add(id); } };
   const loser = (m: Match) => (m.winnerId ? (m.winnerId === m.playerAId ? m.playerBId : m.playerAId) : null);
 
+  // Finálová skupina (ak sa hrá) určuje konečné poradie na čele.
+  if (c.finalGroup && c.finalGroup.entryIds.length) {
+    standings(c.finalGroup, map).forEach(r => put(r.entry.id, r.position, String(r.position)));
+  }
+
   const main = c.ko.main.filter(r => r.kind !== 'third');
   const third = c.ko.main.find(r => r.kind === 'third');
   if (main.length) {
@@ -572,4 +581,15 @@ export function tieTables(group: TournamentGroup, map: Map<string, GenericEntry>
     i = j;
   }
   return out;
+}
+
+
+/** Finálová skupina — z postupujúcich zo základných skupín sa vytvorí
+ *  jedna skupina každý s každým, ktorá určí konečné poradie. */
+export function createFinalGroup(c: Competition, map: Map<string, GenericEntry>, bestOf?: number): TournamentGroup {
+  const qual: string[] = [];
+  c.groups.forEach(g => standings(g, map).filter(r => r.qualified).forEach(r => qual.push(r.entry.id)));
+  const ids = qual.length ? qual : c.entryIds.slice();
+  const bo = (bestOf ?? c.bestOf) as 3 | 5 | 7;
+  return { id: uid(), name: 'Finálová skupina', entryIds: ids, matches: generateRoundRobin(ids, bo), qualifiers: 0, bestOf: bo };
 }

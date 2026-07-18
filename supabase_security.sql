@@ -6,6 +6,22 @@
 
 create extension if not exists pgcrypto;
 
+-- Staré verzie funkcií treba najprv odstrániť — PostgreSQL nedovolí
+-- premenovať parameter cez "create or replace".
+drop function if exists public.topspin_get_tournament(text);
+drop function if exists public.topspin_save_tournament(text, jsonb, text);
+drop function if exists public.topspin_save_tournament(text, jsonb, text, integer);
+drop function if exists public.topspin_verify_pin(text, text);
+drop function if exists public.topspin_delete_tournament(text, text);
+drop function if exists public.topspin_registrations_admin(text, text);
+drop function if exists public.topspin_delete_registration(text, text, uuid);
+drop function if exists public.topspin_add_media(text, text, text, text, text);
+drop function if exists public.topspin_delete_media(text, text, uuid);
+drop function if exists public.topspin_register(text, text, text, text, integer, date, text, text, text[], text, text);
+
+drop function if exists public.topspin_get_tournament(text);
+
+
 -- ---------- B) PIN zašifrovaný + zámok po neúspešných pokusoch ----------
 alter table public.topspin_tournaments add column if not exists admin_pin_hash text;
 alter table public.topspin_tournaments add column if not exists version int not null default 1;
@@ -69,11 +85,12 @@ returns boolean language sql security definer set search_path = public as $$
 $$;
 
 -- nový turnaj: PIN sa ukladá už len zašifrovaný
-create or replace function public.topspin_create_tournament(p_name text, p_pin text, p_code text)
+drop function if exists public.topspin_create_tournament(text, text, text);
+create function public.topspin_create_tournament(p_name text, p_pin text, p_create_code text)
 returns text language plpgsql security definer set search_path = public as $$
 declare v_slug text; v_base text; i int := 1;
 begin
-  if p_code is distinct from (select value from public.topspin_app_config where key = 'create_code') then
+  if p_create_code is distinct from (select value from public.topspin_app_config where key = 'create_code') then
     raise exception 'Neplatný kód na vytvorenie turnaja.';
   end if;
   if length(coalesce(p_pin,'')) < 4 then raise exception 'PIN musí mať aspoň 4 znaky.'; end if;
@@ -263,3 +280,69 @@ grant execute on function public.topspin_history_restore(text,text,bigint) to an
 grant execute on function public.topspin_set_registration(text,text,boolean,timestamptz) to anon, authenticated;
 grant execute on function public.topspin_registration_state(text) to anon, authenticated;
 grant execute on function public.unaccent_safe(text) to anon, authenticated;
+
+-- ---------- Prezencia a štartovné ----------
+alter table public.topspin_registrations add column if not exists checked_in boolean not null default false;
+alter table public.topspin_registrations add column if not exists paid boolean not null default false;
+
+create or replace function public.topspin_set_registration_flags(p_slug text, p_pin text, p_id uuid, p_checked boolean, p_paid boolean)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.topspin_check_pin(p_slug, p_pin) then raise exception 'Neplatný PIN.'; end if;
+  update public.topspin_registrations
+     set checked_in = coalesce(p_checked, checked_in), paid = coalesce(p_paid, paid)
+   where id = p_id and slug = p_slug;
+end $$;
+
+create or replace function public.topspin_registrations_admin(p_slug text, p_pin text)
+returns table(id uuid, first_name text, last_name text, club text, birth_year int,
+              license_until date, country text, gender text, categories text[], email text, note text,
+              checked_in boolean, paid boolean, created_at timestamptz)
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.topspin_check_pin(p_slug, p_pin) then raise exception 'Neplatný PIN.'; end if;
+  return query select r.id, r.first_name, r.last_name, r.club, r.birth_year, r.license_until,
+                      r.country, r.gender, r.categories, r.email, r.note, r.checked_in, r.paid, r.created_at
+               from public.topspin_registrations r where r.slug = p_slug order by r.last_name, r.first_name;
+end $$;
+
+grant execute on function public.topspin_set_registration_flags(text,text,uuid,boolean,boolean) to anon, authenticated;
+
+-- ---------- Registrácia sa uzavrie začiatkom turnaja ----------
+create or replace function public.topspin_register(
+  p_slug text, p_first text, p_last text, p_club text, p_year int,
+  p_license date, p_country text, p_gender text, p_categories text[], p_email text, p_note text)
+returns void language plpgsql security definer set search_path = public as $$
+declare t record; n int; start_ts timestamptz;
+begin
+  select * into t from public.topspin_tournaments where slug = p_slug;
+  if not found then raise exception 'Turnaj neexistuje.'; end if;
+  if not t.reg_open then raise exception 'Registrácia na tento turnaj je uzavretá.'; end if;
+  if t.reg_deadline is not null and now() > t.reg_deadline then raise exception 'Termín registrácie už uplynul.'; end if;
+
+  -- automatická uzávierka: začiatok turnaja (dátum + čas z nastavení)
+  begin
+    start_ts := ((t.data->'settings'->>'date') || ' ' ||
+                 coalesce(nullif(t.data->'settings'->>'startTime',''), '00:00'))::timestamptz;
+  exception when others then start_ts := null;
+  end;
+  if start_ts is not null and now() >= start_ts then
+    raise exception 'Registrácia je uzavretá — turnaj sa už začal.';
+  end if;
+
+  if coalesce(btrim(p_first),'') = '' or coalesce(btrim(p_last),'') = '' then
+    raise exception 'Meno a priezvisko sú povinné.';
+  end if;
+  if exists (select 1 from public.topspin_registrations r
+              where r.slug = p_slug and lower(btrim(r.first_name)) = lower(btrim(p_first))
+                and lower(btrim(r.last_name)) = lower(btrim(p_last))) then
+    raise exception 'Tento hráč je už prihlásený.';
+  end if;
+  select count(*) into n from public.topspin_registrations
+   where slug = p_slug and created_at > now() - interval '1 minute';
+  if n > 30 then raise exception 'Príliš veľa prihlášok naraz. Skús o chvíľu.'; end if;
+
+  insert into public.topspin_registrations(slug, first_name, last_name, club, birth_year, license_until, country, gender, categories, email, note)
+  values (p_slug, btrim(p_first), btrim(p_last), coalesce(p_club,''), p_year, p_license,
+          coalesce(p_country,'Slovensko'), coalesce(p_gender,'M'), coalesce(p_categories,'{}'), p_email, p_note);
+end $$;

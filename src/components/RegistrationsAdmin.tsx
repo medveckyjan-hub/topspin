@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { FileText, Images, Trash2, UserPlus, Video } from 'lucide-react';
 import {
-  addMedia, deleteMedia, deleteRegistration, listMedia, listRegistrationsAdmin, uploadMedia, embedUrl,
+  addMedia, deleteMedia, deleteRegistration, listMedia, listRegistrationsAdmin, setRegistrationFlags,
+  setRegistrationState, getRegistrationState, uploadMedia, embedUrl,
   type MediaItem, type MediaKind, type Registration,
 } from '../lib/supabase';
 import type { Player, TournamentState } from '../types';
@@ -21,11 +22,37 @@ export function RegistrationsAdmin({ slug, pin, state, setState, setNotice }: {
   const [busy, setBusy] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [videoTitle, setVideoTitle] = useState('');
+  const [regOpen, setRegOpen] = useState(true);
+  const [deadline, setDeadline] = useState('');
 
   const load = async () => {
     setErr('');
     try { setRegs(await listRegistrationsAdmin(slug, pin)); } catch (e) { setErr((e as Error).message); }
     try { setMedia(await listMedia(slug)); } catch { /* ignore */ }
+    try { const st = await getRegistrationState(slug); setRegOpen(st.reg_open); setDeadline(st.reg_deadline ? st.reg_deadline.slice(0, 16) : ''); } catch { /* ignore */ }
+  };
+
+  const saveRegState = async (open: boolean, dl: string) => {
+    setRegOpen(open); setDeadline(dl);
+    try { await setRegistrationState(slug, pin, open, dl ? new Date(dl).toISOString() : null); }
+    catch (e) { alert((e as Error).message); }
+  };
+  const flag = async (r: Registration, checked: boolean | null, paid: boolean | null) => {
+    setRegs(cur => cur.map(x => x.id === r.id ? { ...x, checked_in: checked ?? x.checked_in, paid: paid ?? x.paid } : x));
+    try { await setRegistrationFlags(slug, pin, r.id, checked, paid); } catch (e) { alert((e as Error).message); load(); }
+  };
+  /** Pridá prihláseného rovno do súťaží, ktoré si pri registrácii vybral. */
+  const addToCompetitions = (r: Registration) => {
+    const name = `${r.first_name} ${r.last_name}`;
+    setState(s => {
+      let players = s.players;
+      let p = players.find(x => x.name.trim().toLowerCase() === name.trim().toLowerCase());
+      if (!p) { p = { id: uid(), name, club: r.club || '', rating: 0, gender: r.gender === 'F' ? 'F' : 'M' }; players = [...players, p]; }
+      const pid = p.id;
+      const competitions = s.competitions.map(c =>
+        (r.categories || []).includes(c.name) && !c.entryIds.includes(pid) ? { ...c, entryIds: [...c.entryIds, pid] } : c);
+      return { ...s, players, competitions };
+    });
   };
   useEffect(() => { load(); }, [slug]);
 
@@ -85,15 +112,22 @@ export function RegistrationsAdmin({ slug, pin, state, setState, setNotice }: {
       <div className="card-header"><h2>Prihlásení ({regs.length})</h2><div className="row-actions">
         <button className="button primary" onClick={addAll}><UserPlus size={15} />Pridať všetkých k hráčom</button>
         <button className="button" onClick={load}>Obnoviť</button></div></div>
+      <div className="reg-ctrl">
+        <label className="check"><input type="checkbox" checked={regOpen} onChange={e => saveRegState(e.target.checked, deadline)} /> Registrácia je otvorená</label>
+        <label>Uzávierka<input type="datetime-local" value={deadline} onChange={e => saveRegState(regOpen, e.target.value)} /></label>
+        <span className="reg-sum">Prezentácia: <b>{regs.filter(r => r.checked_in).length}/{regs.length}</b> · Zaplatené: <b>{regs.filter(r => r.paid).length}/{regs.length}</b></span>
+      </div>
       {err ? <p className="muted">{err}</p> : regs.length === 0 ? <p className="muted">Zatiaľ žiadne prihlášky. Odkaz na registráciu je na verejnej stránke turnaja.</p> :
-        <div className="table-scroll"><table><thead><tr><th>#</th><th>Meno</th><th>Klub</th><th>Rok</th><th>Licencia</th><th>Poh.</th><th>Kategórie</th><th>E-mail</th><th>Požiadavky</th><th /></tr></thead><tbody>
+        <div className="table-scroll"><table><thead><tr><th>#</th><th>Meno</th><th>Klub</th><th>Rok</th><th>Licencia</th><th>Poh.</th><th>Kategórie</th><th>Prez.</th><th>Zapl.</th><th>E-mail</th><th /></tr></thead><tbody>
           {regs.map((r, i) => <tr key={r.id}><td>{i + 1}</td>
             <td><strong>{r.first_name} {r.last_name}</strong></td><td>{r.club || '—'}</td>
             <td>{r.birth_year ?? '—'}</td><td>{r.license_until ? new Date(r.license_until).toLocaleDateString('sk-SK') : '—'}</td>
             <td>{r.gender}</td><td>{r.categories?.join(', ') || '—'}</td>
-            <td className="reg-mail">{r.email || '—'}</td><td className="reg-mail">{r.note || '—'}</td>
+            <td><input type="checkbox" checked={!!r.checked_in} onChange={e => flag(r, e.target.checked, null)} /></td>
+            <td><input type="checkbox" checked={!!r.paid} onChange={e => flag(r, null, e.target.checked)} /></td>
+            <td className="reg-mail">{r.email || '—'}</td>
             <td><div className="row-actions">
-              {inTournament(r) ? <span className="pill">v turnaji</span> : <button className="button" onClick={() => addToPlayers(r)}>Pridať</button>}
+              <button className="button" onClick={() => addToCompetitions(r)} title="Pridá hráča do súťaží, ktoré si vybral pri registrácii">Do súťaží</button>
               <button className="icon-button danger" onClick={() => removeReg(r.id)}><Trash2 size={15} /></button>
             </div></td></tr>)}
         </tbody></table></div>}

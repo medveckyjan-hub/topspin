@@ -116,6 +116,8 @@ export function AdminApp() {
     {saveState === 'error' && <button className="link-btn" onClick={forceSave}><Save size={13} />Uložiť</button>}
     <a className="link-btn" href="/"><Home size={13} />Turnaje</a>
     <a className="link-btn" href={`/t/${slug}`} target="_blank" rel="noreferrer"><Eye size={13} />Verejné</a>
+    <a className="link-btn" href={`/t/${slug}/tv`} target="_blank" rel="noreferrer">TV režim</a>
+    <a className="link-btn" href={`/t/${slug}/stol`} target="_blank" rel="noreferrer">Od stola</a>
     <button className="link-btn" onClick={() => navigator.clipboard?.writeText(url)}><LinkIcon size={13} />Odkaz</button>
     <span className="mini-qr"><QRCodeSVG value={url} size={40} /></span>
   </div>;

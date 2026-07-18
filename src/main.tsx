@@ -4,6 +4,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Home } from './Home';
 import { PublicView } from './PublicView';
 import { AdminApp } from './AdminApp';
+import { TvView } from './TvView';
+import { TableView } from './TableView';
 import './styles.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -13,6 +15,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/" element={<Home />} />
         <Route path="/t/:slug" element={<PublicView />} />
         <Route path="/t/:slug/admin" element={<AdminApp />} />
+        <Route path="/t/:slug/tv" element={<TvView />} />
+        <Route path="/t/:slug/stol" element={<TableView />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>
