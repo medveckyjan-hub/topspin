@@ -468,3 +468,23 @@ tr.gt-second td{background:#f7f9fb}
 .login-sent span{font-size:.8rem;color:#3d7a58}
 .who{font-size:.8rem;color:#7b8798}
 .who b{color:#172033}
+
+/* ============ prihlásenie v hornej lište ============ */
+.public-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.auth-btn{display:inline-flex;align-items:center;gap:7px;border:1px solid #e0e6ec;background:#fff;color:#2a3547;border-radius:999px;padding:8px 15px;font-size:.82rem;font-weight:700;cursor:pointer}
+.auth-btn:hover{border-color:#e62834;color:#e62834}
+.auth-btn.ghost{background:#f7f9fb}
+.auth-mail{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.auth-user{position:relative}
+.auth-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:40;background:#fff;border:1px solid #e4e9ee;border-radius:12px;box-shadow:0 10px 26px #0b12201a;padding:8px;min-width:220px;display:grid;gap:4px}
+.auth-menu-mail{font-size:.74rem;color:#8a95a4;padding:6px 10px;overflow:hidden;text-overflow:ellipsis}
+.auth-menu button{display:flex;align-items:center;gap:8px;width:100%;border:0;background:transparent;padding:9px 10px;border-radius:9px;font-size:.85rem;font-weight:600;color:#2a3547;cursor:pointer;text-align:left}
+.auth-menu button:hover{background:#f4f6f8;color:#e62834}
+.modal.auth-modal{max-width:420px;padding:0 18px 20px}
+.auth-modal-body{display:flex;flex-direction:column;gap:12px;text-align:center}
+.auth-modal-body p{color:#7b8798;font-size:.88rem;margin:0;line-height:1.5}
+.auth-modal-body input{border:1px solid #d6dde5;border-radius:12px;padding:13px 14px;font-size:1rem;text-align:center}
+.auth-modal-body input:focus{outline:none;border-color:#e62834}
+.auth-modal-body .button{justify-content:center}
+.tbl-right{display:flex;align-items:center;gap:8px}
+@media(max-width:560px){.auth-mail{max-width:110px}}

@@ -1,39 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { LogIn, LogOut, Mail } from 'lucide-react';
-import { canEdit, claimTournament, getSession, onAuth, sendLoginLink, signOut, type Session } from '../lib/supabase';
-
-/** Prihlásenie e-mailom (bez hesla). Na e-mail príde odkaz, ktorým sa používateľ prihlási. */
-export function LoginBox({ note }: { note?: string }) {
-  const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
-  const [err, setErr] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const send = async () => {
-    setErr('');
-    if (!email.includes('@')) return setErr('Zadaj platný e-mail.');
-    setBusy(true);
-    try { await sendLoginLink(email); setSent(true); }
-    catch (e) { setErr((e as Error).message); }
-    setBusy(false);
-  };
-
-  return <div className="login-box">
-    <img src="/topspin.png" alt="TOPSPIN" />
-    <h1>Prihlásenie</h1>
-    <p>{note || 'Zadaj svoj e-mail. Pošleme ti odkaz, ktorým sa prihlásiš — žiadne heslo si nemusíš pamätať.'}</p>
-    {sent ? <div className="login-sent"><Mail size={20} />
-      <div><strong>Odkaz je na ceste</strong><span>Skontroluj schránku {email} (aj priečinok Spam) a klikni na odkaz.</span></div>
-    </div> : <>
-      <input type="email" placeholder="tvoj@email.sk" value={email} autoComplete="email"
-        onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()} />
-      <button className="button primary" disabled={busy} onClick={send}><LogIn size={16} />{busy ? 'Odosielam…' : 'Poslať prihlasovací odkaz'}</button>
-    </>}
-    {err && <p className="match-error">{err}</p>}
-    <Link className="link-btn" to="/">Späť na turnaje</Link>
-  </div>;
-}
+import { canEdit, claimTournament, getSession, onAuth, signOut, type Session } from '../lib/supabase';
+import { LoginModal } from './AuthBar';
 
 /** Obal, ktorý pustí ďalej len prihláseného používateľa s prístupom k turnaju. */
 export function AuthGate({ slug, children, note }: { slug?: string; children: (s: Session) => React.ReactNode; note?: string }) {
@@ -42,6 +11,7 @@ export function AuthGate({ slug, children, note }: { slug?: string; children: (s
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [pin, setPin] = useState('');
   const [claimErr, setClaimErr] = useState('');
+  const [showLogin, setShowLogin] = useState(false);
 
   useEffect(() => {
     getSession().then(s => { setSession(s); setReady(true); });
@@ -60,7 +30,14 @@ export function AuthGate({ slug, children, note }: { slug?: string; children: (s
   };
 
   if (!ready) return <div className="login-shell"><p className="muted">Načítavam…</p></div>;
-  if (!session) return <div className="login-shell"><LoginBox note={note} /></div>;
+  if (!session) return <div className="login-shell"><div className="login-box">
+    <img src="/topspin.png" alt="TOPSPIN" />
+    <h1>Prihlásenie</h1>
+    <p>{note || 'Na správu turnaja sa prihlás svojím e-mailom.'}</p>
+    <button className="button primary" onClick={() => setShowLogin(true)}>Prihlásiť sa</button>
+    <Link className="link-btn" to="/">Späť na turnaje</Link>
+    {showLogin && <LoginModal onClose={() => setShowLogin(false)} note={note} />}
+  </div></div>;
 
   if (slug && allowed === false) return <div className="login-shell"><div className="login-box">
     <h1>Nemáš prístup</h1>

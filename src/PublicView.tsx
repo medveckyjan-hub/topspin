@@ -7,6 +7,7 @@ import { GroupTable } from './components/GroupTable';
 import { MatchOverview, type Side } from './components/MatchOverview';
 import { getTournament, listMedia, listRegistrations, embedUrl, type MediaItem, type Registration } from './lib/supabase';
 import { RegistrationForm } from './components/RegistrationForm';
+import { AuthBar } from './components/AuthBar';
 import { TEAM_SYSTEMS, entryMap, finalOrder, groupRounds, scoreText, setsText, standings, tieTables } from './lib/multisport';
 import type { Competition, GenericEntry, KnockoutRound, Match, TournamentState } from './types';
 import './styles.css';
@@ -312,5 +313,11 @@ function KMatch({ m, em, onClick }: { m: Match; em: Map<string, GenericEntry>; o
 const hasSchedule = (cs: Competition[]) => cs.some(c => c.groups.some(g => g.matches.some(m => m.scheduledTime)));
 
 function Shell({ children }: { children: React.ReactNode }) {
-  return <div className="public-shell"><header className="public-top"><Link className="brand-line" to="/"><img className="brand-logo-sm" src="/topspin.png" alt="TOPSPIN" /><strong>TOPSPIN</strong></Link></header><main className="public-main">{children}</main></div>;
+  return <div className="public-shell">
+    <header className="public-top">
+      <Link className="brand-line" to="/"><img className="brand-logo-sm" src="/topspin.png" alt="TOPSPIN" /><strong>TOPSPIN</strong></Link>
+      <AuthBar />
+    </header>
+    <main className="public-main">{children}</main>
+  </div>;
 }

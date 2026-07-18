@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Check, ChevronLeft, Lock, Minus, Plus, RefreshCw } from 'lucide-react';
 import { getTournament, isConflict, saveTournament } from './lib/supabase';
 import { AuthGate } from './components/AuthGate';
+import { AuthBar } from './components/AuthBar';
 import { entryMap, normalizeMatch, scoreText, setsToWin } from './lib/multisport';
 import type { Competition, Match, TournamentState } from './types';
 import './styles.css';
@@ -84,7 +85,7 @@ function TableInner() {
   return <div className="tbl-shell">
     <header className="tbl-top">
       <div><strong>Zapisovanie od stola</strong><span className={`tbl-state ${state}`}>{state === 'saving' ? 'Ukladám…' : state === 'saved' ? 'Uložené' : state === 'conflict' ? 'Načítané nanovo' : state === 'error' ? 'Chyba ukladania' : ''}</span></div>
-      <button className="icon-button" onClick={load}><RefreshCw size={18} /></button>
+      <div className="tbl-right"><AuthBar /><button className="icon-button" onClick={load}><RefreshCw size={18} /></button></div>
     </header>
 
     <div className="tbl-tabs">

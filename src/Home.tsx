@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Trophy, Plus, ArrowRight, ShieldCheck } from 'lucide-react';
-import { cloudReady, createTournament, getSession, listTournaments, onAuth, signOut, type Session, type TournamentListItem } from './lib/supabase';
-import { LoginBox } from './components/AuthGate';
+import { canCreate, cloudReady, createTournament, getSession, listTournaments, onAuth, signOut, type Session, type TournamentListItem } from './lib/supabase';
+import { AuthBar } from './components/AuthBar';
 import './styles.css';
 
 export function Home() {
@@ -14,7 +14,9 @@ export function Home() {
   const [busy, setBusy] = useState(false);
   const [session, setSession] = useState<Session>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [mayCreate, setMayCreate] = useState(false);
   useEffect(() => { getSession().then(s => { setSession(s); setAuthReady(true); }); return onAuth(setSession); }, []);
+  useEffect(() => { if (session) canCreate().then(setMayCreate); else setMayCreate(false); }, [session]);
 
   useEffect(() => { (async () => { try { if (cloudReady) setItems(await listTournaments()); } catch (e) { setErr((e as Error).message); } finally { setLoading(false); } })(); }, []);
 
@@ -26,15 +28,25 @@ export function Home() {
   };
 
   return <div className="public-shell">
-    <header className="public-top"><div className="brand-line"><img className="brand-logo-sm" src="/topspin.png" alt="TOPSPIN" /><strong>TOPSPIN</strong></div></header>
+    <header className="public-top">
+      <div className="brand-line"><img className="brand-logo-sm" src="/topspin.png" alt="TOPSPIN" /><strong>TOPSPIN</strong></div>
+      <AuthBar />
+    </header>
     <main className="public-main">
       {!cloudReady && <div className="cloud-warn">Chýba pripojenie na Supabase. Nastav <code>VITE_SUPABASE_URL</code> a <code>VITE_SUPABASE_ANON_KEY</code>.</div>}
 
-      {authReady && !session && <section className="card form-card"><LoginBox note="Prihlás sa e-mailom a môžeš zakladať a spravovať turnaje." /></section>}
+      {authReady && !session && <section className="card form-card">
+        <h2>Turnaje</h2>
+        <p className="hint">Výsledky si pozrie ktokoľvek. Na zakladanie a správu turnajov sa prihlás tlačidlom <b>Prihlásiť sa</b> vpravo hore.</p>
+      </section>}
 
-      {session && <section className="card form-card create-card">
-        <div className="card-header"><h2><Plus size={18} /> Nový turnaj</h2>
-          <span className="who">Prihlásený: <b>{session.email}</b> <button className="link-btn" onClick={() => signOut()}>Odhlásiť</button></span></div>
+      {session && !mayCreate && <section className="card form-card">
+        <h2>Turnaje</h2>
+        <p className="hint">Tvoj e-mail nemá povolenie zakladať turnaje. Ak ti správca pridelil prístup ku konkrétnemu turnaju, nájdeš ho v zozname nižšie.</p>
+      </section>}
+
+      {session && mayCreate && <section className="card form-card create-card">
+        <h2><Plus size={18} /> Nový turnaj</h2>
         <div className="create-grid">
           <input placeholder="Názov turnaja" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && create()} />
           <button className="button primary" disabled={busy || !cloudReady} onClick={create}>{busy ? 'Zakladám…' : 'Založiť a spravovať'}</button>

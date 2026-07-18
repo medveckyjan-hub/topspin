@@ -5,6 +5,7 @@ import { Lock, Trophy, Link as LinkIcon, Eye, RotateCcw, Save, Home } from 'luci
 import { TournamentEditor } from './App';
 import { deleteTournament, getTournament, isConflict, saveTournament, signOut, type Session } from './lib/supabase';
 import { AuthGate } from './components/AuthGate';
+import { AuthBar } from './components/AuthBar';
 import type { TournamentState } from './types';
 import './styles.css';
 
@@ -101,7 +102,7 @@ function AdminInner({ session }: { session: Session }) {
   }, [unlocked, slug, pin]);
   const restore = () => { if (!pending) return; setInitial(pending.data); setSeed(x => x + 1); setPending(null); pushCloud(pending.data); };
 
-  if (!unlocked) return <div className="public-shell"><header className="public-top"><Link className="brand-line" to="/"><img className="brand-logo-sm" src="/topspin.png" alt="TOPSPIN" /><strong>TOPSPIN</strong></Link></header>
+  if (!unlocked) return <div className="public-shell"><header className="public-top"><Link className="brand-line" to="/"><img className="brand-logo-sm" src="/topspin.png" alt="TOPSPIN" /><strong>TOPSPIN</strong></Link><AuthBar /></header>
     <main className="public-main"><section className="card form-card pin-card">
       <h2><Lock size={18} /> Admin prístup</h2>
       <p className="muted">Zadaj PIN turnaja na editáciu. Bez PIN sú výsledky len na čítanie.</p>

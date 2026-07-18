@@ -256,3 +256,28 @@ export async function removeAccess(slug: string, email: string): Promise<void> {
   const { error } = await supabase.rpc('topspin_remove_access', { p_slug: slug, p_email: email });
   if (error) throw error;
 }
+
+/** Smie prihlásený používateľ zakladať nové turnaje? */
+export async function canCreate(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('topspin_can_create');
+  if (error) return false;
+  return data === true;
+}
+
+export type CreatorRow = { email: string; created_at: string };
+
+export async function listCreators(): Promise<CreatorRow[]> {
+  const { data, error } = await supabase.rpc('topspin_list_creators');
+  if (error) throw error;
+  return (data ?? []) as CreatorRow[];
+}
+
+export async function addCreator(email: string): Promise<void> {
+  const { error } = await supabase.rpc('topspin_add_creator', { p_email: email });
+  if (error) throw error;
+}
+
+export async function removeCreator(email: string): Promise<void> {
+  const { error } = await supabase.rpc('topspin_remove_creator', { p_email: email });
+  if (error) throw error;
+}
