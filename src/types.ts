@@ -23,5 +23,5 @@ export type TeamTie={id:string;competitionId:string;homeTeamId:string;awayTeamId
 export type Competition={id:string;name:string;type:CompetitionType;bestOf:3|5|7;preferredSize:number;qualifiersPerGroup:number;thirdPlace:boolean;consolation:boolean;groupPlayoff:boolean;finalGroup?:TournamentGroup;ageCategory?:string;category?:CompetitionCategory;entryFee?:number;points?:Record<string,number>;entryIds:string[];groups:TournamentGroup[];ko:Knockout;teamSystemId?:TeamSystemId;teamTies:TeamTie[]};
 export type TournamentSettings={name:string;date:string;venue:string;tables:number;matchMinutes:number;restMinutes:number;startTime?:string};
 export type TournamentState={version:5;settings:TournamentSettings;players:Player[];pairs:PairEntry[];teams:TeamEntry[];competitions:Competition[]};
-export type View='dashboard'|'players'|'database'|'registration'|'entries'|'competitions'|'groups'|'results'|'knockout'|'schedule'|'order'|'teams'|'exports';
+export type View='dashboard'|'players'|'database'|'registration'|'history'|'entries'|'competitions'|'groups'|'results'|'knockout'|'schedule'|'order'|'teams'|'exports';
 export type FinalRow={entry:GenericEntry;place:number;placeLabel:string};

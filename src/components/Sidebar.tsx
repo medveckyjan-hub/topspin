@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, UserRoundCog, Trophy, Layers3, TableProperties, GitBranch, CalendarClock, Medal, Database, UserPlus, Shield, FileDown } from 'lucide-react';
+import { LayoutDashboard, Users, UserRoundCog, Trophy, Layers3, TableProperties, GitBranch, CalendarClock, Medal, Database, UserPlus, RotateCcw, Shield, FileDown } from 'lucide-react';
 import type { View } from '../types';
 const items: [View, string, any][] = [
   ['dashboard', 'Prehľad', LayoutDashboard],
@@ -13,6 +13,7 @@ const items: [View, string, any][] = [
   ['schedule', 'Harmonogram', CalendarClock],
   ['order', 'Poradie', Medal],
   ['teams', 'Družstvá', Shield],
+  ['history', 'História zmien', RotateCcw],
   ['exports', 'Tlač a export', FileDown],
 ];
 export function Sidebar({ active, onChange, playerCount, groupCount }: { active: View; onChange: (v: View) => void; playerCount: number; groupCount: number }) {

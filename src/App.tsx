@@ -9,7 +9,9 @@ import {
 } from './lib/multisport';
 import { cloudReady, listPlayers, searchPlayers, upsertPlayer, type DbPlayer } from './lib/supabase';
 import { GroupTable } from './components/GroupTable';
+import { printBracket, printDraw, printEntries, printFinalOrder, printMatchSheets, printSchedule, printStandings } from './lib/print';
 import { RegistrationsAdmin } from './components/RegistrationsAdmin';
+import { HistoryPanel } from './components/HistoryPanel';
 import { AGE_CATEGORIES, categoryLabel, categoryLimits, type CompetitionCategory, type GenderMode } from './lib/categories';
 import type { SchedulePhase } from './lib/multisport';
 import type {
@@ -96,7 +98,7 @@ export function TournamentEditor({ initial, onSave, banner, onDelete, slug, pin 
 
   const closeDetail = () => setDetail(null);
 
-  const titles: Record<View, string> = { dashboard: 'Prehľad turnaja', players: 'Hráči', database: 'Databáza hráčov', registration: 'Registrácia a médiá', entries: 'Páry a družstvá', competitions: 'Súťaže', groups: 'Skupiny', results: 'Výsledky skupín', knockout: 'Vyraďovacie pavúky', schedule: 'Stoly a harmonogram', order: 'Konečné poradie', teams: 'Družstvové zápasy', exports: 'Tlač a export' };
+  const titles: Record<View, string> = { dashboard: 'Prehľad turnaja', players: 'Hráči', database: 'Databáza hráčov', registration: 'Registrácia a médiá', history: 'História zmien', entries: 'Páry a družstvá', competitions: 'Súťaže', groups: 'Skupiny', results: 'Výsledky skupín', knockout: 'Vyraďovacie pavúky', schedule: 'Stoly a harmonogram', order: 'Konečné poradie', teams: 'Družstvové zápasy', exports: 'Tlač a export' };
 
   return (
     <div className="app-layout">
@@ -120,6 +122,9 @@ export function TournamentEditor({ initial, onSave, banner, onDelete, slug, pin 
           {view === 'schedule' && <Schedule state={state} setState={setState} setNotice={setNotice} label={label} />}
           {view === 'order' && <FinalOrderView state={state} update={updateComp} />}
           {view === 'database' && <PlayerDatabase state={state} setState={setState} setNotice={setNotice} />}
+          {view === 'history' && (slug && pin
+            ? <HistoryPanel slug={slug} pin={pin} onRestore={st => { setState(st); setNotice('Turnaj bol vrátený na staršiu verziu.'); }} />
+            : <Empty title="História zmien" text="História je dostupná po prihlásení cez PIN (adresa /t/…/admin)." />)}
           {view === 'registration' && (slug && pin
             ? <RegistrationsAdmin slug={slug} pin={pin} state={state} setState={setState} setNotice={setNotice} />
             : <Empty title="Registrácia" text="Registrácie a médiá sú dostupné po prihlásení do turnaja cez PIN (adresa /t/…/admin)." />)}
@@ -491,18 +496,31 @@ function TeamTieCard({ tie, c, state, label, openMatch, update, setNotice }: { t
   </div>;
 }
 
-function Exports({ state, setState, label }: { state: TournamentState; setState: React.Dispatch<React.SetStateAction<TournamentState>>; label: (id: string | null) => string }) {
+function Exports({ state, setState }: { state: TournamentState; setState: React.Dispatch<React.SetStateAction<TournamentState>>; label: (id: string | null) => string }) {
   const exp = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })); a.download = 'stoten-turnaj.json'; a.click(); };
-  return <section className="card export-card"><h2>Tlač a export</h2>
-    <div className="export-actions">
-      <button className="button primary" onClick={() => window.print()}><Printer />Tlačiť / PDF</button>
-      <button className="button" onClick={exp}><Download />Export JSON</button>
-      <label className="button upload-button">Import JSON<input type="file" accept=".json" onChange={async e => { const f = e.target.files?.[0]; if (f) { try { const d = JSON.parse(await f.text()); if (d.version === 5) setState(d); } catch { /* ignore */ } } }} /></label>
-    </div>
-    <div className="print-summary"><h3>{state.settings.name}</h3><p>{state.settings.date} · {state.settings.venue}</p>
-      {state.competitions.filter(c => c.type !== 'teams').map(c => { const em = entryMap(c, state.players, state.pairs, state.teams); return <div key={c.id}><h4>{c.name}</h4>{c.groups.map(g => <div key={g.id}><strong>{g.name}</strong><ol>{standings(g, em).map(r => <li key={r.entry.id}>{r.entry.name} — {r.wins}V/{r.losses}P, sety {r.setsFor}:{r.setsAgainst}</li>)}</ol></div>)}</div>; })}
-    </div>
-  </section>;
+  const docs: [string, string, () => void][] = [
+    ['Žreb a rozpis skupín', 'Skupiny s hráčmi a prázdnymi zápasmi na zapisovanie rukou.', () => printDraw(state)],
+    ['Tabuľky skupín', 'Aktuálne tabuľky vrátane finálovej skupiny.', () => printStandings(state)],
+    ['Pavúk', 'Vyraďovací pavúk po kolách.', () => printBracket(state)],
+    ['Časový harmonogram', 'Rozdelený po fázach: skupiny, play-off, pavúk.', () => printSchedule(state)],
+    ['Súpiska účastníkov', 'Zoznam po súťažiach so stĺpcom na prezentáciu.', () => printEntries(state)],
+    ['Konečné poradie', 'Umiestnenia a body.', () => printFinalOrder(state)],
+    ['Zápisy o stretnutí', 'Prázdne zápisy pre rozhodcov pri stoloch.', () => printMatchSheets(state)],
+  ];
+  return <div className="matches-stack">
+    <section className="card"><div className="card-header"><h2>Tlačové zostavy</h2></div>
+      <p className="field-hint">Každá zostava sa otvorí v novom okne pripravená na tlač alebo uloženie do PDF.</p>
+      <div className="print-grid">{docs.map(([t, d, fn]) => <button className="print-tile" key={t} onClick={fn}>
+        <Printer size={18} /><div><strong>{t}</strong><span>{d}</span></div></button>)}</div>
+    </section>
+    <section className="card form-card"><h2>Záloha turnaja</h2>
+      <div className="export-actions">
+        <button className="button" onClick={exp}><Download size={16} />Export JSON</button>
+        <label className="button upload-button">Import JSON<input type="file" accept=".json" onChange={async e => { const f = e.target.files?.[0]; if (f) { try { const d = JSON.parse(await f.text()); if (d.version === 5) setState(d); } catch { /* ignore */ } } }} /></label>
+      </div>
+      <p className="field-hint">Turnaj sa priebežne zálohuje aj na server — posledných 50 verzií sa dá vrátiť späť.</p>
+    </section>
+  </div>;
 }
 
 // ============================ ZDIEĽANÉ ============================

@@ -145,14 +145,16 @@ begin
   return cur + 1;
 end $$;
 
-create or replace function public.topspin_get_tournament(p_slug text)
+drop function if exists public.topspin_get_tournament(text);
+create function public.topspin_get_tournament(p_slug text)
 returns table(slug text, name text, data jsonb, version int, updated_at timestamptz)
 language sql security definer set search_path = public as $$
   select slug, name, data, version, updated_at from public.topspin_tournaments where slug = p_slug
 $$;
 
 -- ---------- E) história: zoznam a návrat späť ----------
-create or replace function public.topspin_history_list(p_slug text, p_pin text)
+drop function if exists public.topspin_history_list(text, text);
+create function public.topspin_history_list(p_slug text, p_pin text)
 returns table(id bigint, version int, saved_at timestamptz)
 language plpgsql security definer set search_path = public as $$
 begin
@@ -183,7 +185,8 @@ begin
   delete from public.topspin_tournaments where slug = p_slug;
 end $$;
 
-create or replace function public.topspin_registrations_admin(p_slug text, p_pin text)
+drop function if exists public.topspin_registrations_admin(text, text);
+create function public.topspin_registrations_admin(p_slug text, p_pin text)
 returns table(id uuid, first_name text, last_name text, club text, birth_year int,
               license_until date, country text, gender text, categories text[], email text, note text, created_at timestamptz)
 language plpgsql security definer set search_path = public as $$
@@ -257,7 +260,8 @@ begin
   update public.topspin_tournaments set reg_open = coalesce(p_open, reg_open), reg_deadline = p_deadline where slug = p_slug;
 end $$;
 
-create or replace function public.topspin_registration_state(p_slug text)
+drop function if exists public.topspin_registration_state(text);
+create function public.topspin_registration_state(p_slug text)
 returns table(reg_open boolean, reg_deadline timestamptz)
 language sql security definer set search_path = public as $$
   select reg_open, reg_deadline from public.topspin_tournaments where slug = p_slug
@@ -294,7 +298,8 @@ begin
    where id = p_id and slug = p_slug;
 end $$;
 
-create or replace function public.topspin_registrations_admin(p_slug text, p_pin text)
+drop function if exists public.topspin_registrations_admin(text, text);
+create function public.topspin_registrations_admin(p_slug text, p_pin text)
 returns table(id uuid, first_name text, last_name text, club text, birth_year int,
               license_until date, country text, gender text, categories text[], email text, note text,
               checked_in boolean, paid boolean, created_at timestamptz)

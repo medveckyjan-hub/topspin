@@ -443,3 +443,8 @@ tr.gt-second td{background:#f7f9fb}
 .decisive-tag{font-size:.64rem;font-weight:800;color:#8a6a00;background:#ffd23f;border-radius:999px;padding:3px 9px;text-transform:uppercase;letter-spacing:.04em;vertical-align:middle;margin-left:8px}
 .final-block{border:2px solid #ffd23f;border-radius:14px;padding:14px 16px;background:#fffdf5;margin-bottom:18px}
 .sched-phase{margin-bottom:20px}
+.print-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;margin-top:12px}
+.print-tile{display:flex;align-items:flex-start;gap:12px;text-align:left;background:#fff;border:1px solid #e4e9ee;border-radius:14px;padding:14px 16px;cursor:pointer}
+.print-tile:hover{border-color:#e62834}
+.print-tile strong{display:block;font-size:.92rem;color:#172033}
+.print-tile span{font-size:.76rem;color:#7b8798;line-height:1.35}

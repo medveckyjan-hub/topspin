@@ -180,7 +180,18 @@ export function PublicView() {
               onMatch={(m, sa, sb) => setMo({ comp: c, em, m, event: 'Finálová skupina', groupName: fg.name, matchNo: `${sa} - ${sb}` })} />
             <div className="pub-matches">{fg.matches.filter(m => m.winnerId).map(m => <PubMatch key={m.id} m={m} label={label} em={em} onClick={() => setMo({ comp: c, em, m, event: 'Finálová skupina', groupName: fg.name })} />)}</div>
           </div> : null;
-          return <>{finalG}{!finalG && bracket}</>;
+          const po = c.groups.filter(g => g.playoff);
+          const playoff = po.length > 0 ? <div className="pub-group pub-decisive">
+            <h3>Play-off skupín <span className="decisive-tag">určuje poradie</span></h3>
+            {po.map(g => <div className="pub-playoff" key={g.id}><h4>{g.name}</h4>
+              <div className="pub-matches">
+                <div className="pub-po-row"><span className="pb-label">O 1. miesto</span>
+                  <PubMatch m={g.playoff!.final} label={label} em={em} onClick={() => setMo({ comp: c, em, m: g.playoff!.final, event: 'Play-off · o 1. miesto', groupName: g.name })} /></div>
+                {g.playoff!.third && <div className="pub-po-row"><span className="pb-label">O 3. miesto</span>
+                  <PubMatch m={g.playoff!.third!} label={label} em={em} onClick={() => setMo({ comp: c, em, m: g.playoff!.third!, event: 'Play-off · o 3. miesto', groupName: g.name })} /></div>}
+              </div></div>)}
+          </div> : null;
+          return <>{finalG}{!finalG && bracket}{playoff}</>;
         })()}
         {c.groups.map(g => <div className="pub-group" key={g.id}>
           <h3>{g.name}</h3>
