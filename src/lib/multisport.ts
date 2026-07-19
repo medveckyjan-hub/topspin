@@ -854,3 +854,51 @@ export const qualificationDone = (q: QualificationStage): boolean =>
 export function qualifiedForGroups(q: QualificationStage): string[] {
   return [...q.directIds, ...qualificationWinners(q).filter((w): w is string => !!w)];
 }
+
+/**
+ * Všeobecná stavba pavúka z ľubovoľného zoznamu účastníkov.
+ * `mode='groups'` — nasadenie podľa umiestnenia v skupinách (A1/A2 do opačných polovíc),
+ * `mode='rating'` — nasadenie podľa ratingu s oddelením klubov (hrá sa len pavúk).
+ */
+export function buildBracket(
+  seedsIn: { id: string; groupIndex: number; position: number; club?: string }[],
+  bestOf: 3 | 5 | 7,
+  thirdPlace: boolean,
+  mode: 'groups' | 'rating',
+): KnockoutRound[] {
+  if (seedsIn.length < 2) return [];
+  const seeds = seedsIn.map(s => ({ ...s, club: (s.club || '').trim().toLowerCase() }));
+  return bracketFromSeeds(mode === 'rating' ? placeSeedsByClub(seeds) : placeSeeds(seeds), bestOf, thirdPlace);
+}
+
+/** Konečné poradie v pavúku: víťaz, finalista, o 3. miesto, potom podľa kola vypadnutia. */
+export function bracketRanking(rounds: KnockoutRound[], map: Map<string, GenericEntry>): string[] {
+  const main = rounds.filter(r => r.kind !== 'third');
+  if (!main.length) return [];
+  const out: string[] = [];
+  const push = (id: string | null) => { if (id && !out.includes(id)) out.push(id); };
+
+  const final = main[main.length - 1].matches[0];
+  push(final?.winnerId ?? null);
+  if (final?.winnerId) push(final.playerAId === final.winnerId ? final.playerBId : final.playerAId);
+
+  const third = rounds.find(r => r.kind === 'third')?.matches[0];
+  if (third?.winnerId) {
+    push(third.winnerId);
+    push(third.playerAId === third.winnerId ? third.playerBId : third.playerAId);
+  }
+
+  // ostatní podľa kola, v ktorom vypadli (neskôr = lepšie), v rámci kola podľa nasadenia
+  for (let ri = main.length - 1; ri >= 0; ri--) {
+    const losers: string[] = [];
+    main[ri].matches.forEach(m => {
+      if (!m.winnerId) return;
+      const loser = m.playerAId === m.winnerId ? m.playerBId : m.playerAId;
+      if (loser) losers.push(loser);
+    });
+    losers.sort((a, b) => (map.get(b)?.rating ?? 0) - (map.get(a)?.rating ?? 0));
+    losers.forEach(push);
+  }
+  return out;
+}
+

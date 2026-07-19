@@ -28,6 +28,21 @@ Testy jadra potrebujú skompilované jadro ako `src/lib/multisport.mjs`.
 - `src/lib/qualification.test.mjs` — kvalifikácia a reťazenie fáz, 12 kontrol
 - `src/lib/draw.test.mjs` — oddelenie klubov v žrebe do skupín, 10 kontrol
 - `src/lib/bracket.test.mjs` — nasadzovanie do pavúka v oboch režimoch, 14 kontrol
+- `src/lib/stages.test.mjs` — reťaz fáz a konečné poradie, 19 kontrol
+
+## Reťaz fáz (Fázy turnaja)
+Súťaž môže mať ľubovoľnú postupnosť kôl. Každá fáza je skupiny alebo pavúk
+a berie účastníkov z jedného z troch zdrojov:
+- **všetci prihlásení** (prvá fáza),
+- **postupujúci** z konkrétnej predchádzajúcej fázy,
+- **vypadnutí** z konkrétnej fázy — takto vzniká útecha.
+
+Príklad: Kvalifikácia (pavúk) → 1. kolo skupín → 2. kolo skupín → Finálový pavúk,
+plus Útecha 1. kola a Útecha 2. kola vetviace sa z vypadnutých.
+
+Fáza sa dá vytvoriť až keď je jej zdrojová fáza dohratá. Konečné poradie sa
+počíta naprieč všetkými fázami: kto sa dostal ďalej, je vyššie; hlavná vetva
+je nad útechou.
 
 ## Pravidlá nasadzovania (aby sa v budúcnosti nepomiešali)
 - **Hrajú sa skupiny → pavúk:** v pavúku rozhoduje len skupina. Postupujúci

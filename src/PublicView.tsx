@@ -8,6 +8,7 @@ import { MatchOverview, type Side } from './components/MatchOverview';
 import { getTournament, listMedia, listRegistrations, embedUrl, type MediaItem, type Registration } from './lib/supabase';
 import { RegistrationForm } from './components/RegistrationForm';
 import { AuthBar } from './components/AuthBar';
+import { finalPlacement, stageDone, stageSummary } from './lib/stages';
 import { TEAM_SYSTEMS, entryMap, finalOrder, groupRounds, scoreText, setsText, standings, tieTables , qualificationWinners} from './lib/multisport';
 import type { Competition, GenericEntry, KnockoutRound, Match, TournamentState } from './types';
 import './styles.css';
@@ -21,7 +22,7 @@ export function PublicView() {
   const [card, setCard] = useState<{ comp: Competition; entryId: string; name: string } | null>(null);
   const [mo, setMo] = useState<{ comp: Competition; em: Map<string, GenericEntry>; m: Match; event: string; groupName?: string; matchNo?: string } | null>(null);
   const [tab, setTab] = useState<string>('');   // '' = prvá kategória, inak id súťaže alebo 'harmonogram'/'registracia'/...
-  const [sec, setSec] = useState<'zoznam' | 'skupiny' | 'playoff' | 'pavuk' | 'poradie'>('skupiny');
+  const [sec, setSec] = useState<'zoznam' | 'skupiny' | 'playoff' | 'pavuk' | 'poradie' | 'kvalifikacia' | 'faza'>('skupiny');
   const [regs, setRegs] = useState<Registration[]>([]);
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [regOpen, setRegOpen] = useState(false);
@@ -79,7 +80,7 @@ export function PublicView() {
     };
   }, [data]);
 
-  const defaultSection = (c: Competition): 'zoznam' | 'skupiny' | 'playoff' | 'pavuk' | 'poradie' =>
+  const defaultSection = (c: Competition): 'zoznam' | 'skupiny' | 'playoff' | 'pavuk' | 'poradie' | 'kvalifikacia' | 'faza' =>
     (c.groups.length ? 'skupiny' : c.ko.main.length ? 'pavuk' : 'zoznam');
 
   if (state === 'load') return <Shell><p className="muted">Načítavam…</p></Shell>;
@@ -93,7 +94,7 @@ export function PublicView() {
   const bracketRounds = (rounds: KnockoutRound[], c: Competition, em: Map<string, GenericEntry>) => {
     const main = rounds.filter(r => r.kind !== 'third');
     const third = rounds.find(r => r.kind === 'third');
-    const open = (m: Match, ev: string) => setMo({ comp: c, em, m, event: ev });
+    const openM = (m: Match, ev: string) => setMo({ comp: c, em, m, event: ev });
     return <>
       <div className="kbracket">{main.map((r, ri) => {
         const last = ri === main.length - 1;
@@ -102,12 +103,12 @@ export function PublicView() {
         return <div className={`kround${last ? ' kround-last' : ''}`} key={r.id}>
           <h4>{r.name}</h4>
           <div className="kround-body">{pairs.map((pr, pi) => <div className={`kpair${pr.length < 2 || last ? ' kpair-solo' : ''}`} key={pi}>
-            {pr.map(m => <KMatch key={m.id} m={m} em={em} onClick={() => open(m, r.name)} />)}
+            {pr.map(m => <KMatch key={m.id} m={m} em={em} onClick={() => openM(m, r.name)} />)}
           </div>)}</div>
         </div>;
       })}</div>
       {third && third.matches.length > 0 && <div className="kthird"><h4>O 3. miesto</h4>
-        <div className="kround-body"><div className="kpair kpair-solo">{third.matches.map(m => <KMatch key={m.id} m={m} em={em} onClick={() => open(m, 'O 3. miesto')} />)}</div></div>
+        <div className="kround-body"><div className="kpair kpair-solo">{third.matches.map(m => <KMatch key={m.id} m={m} em={em} onClick={() => openM(m, 'O 3. miesto')} />)}</div></div>
       </div>}
     </>;
   };
@@ -185,6 +186,7 @@ export function PublicView() {
       const fo = finalOrder(c, em);
       const secs: [typeof sec, string, boolean][] = [
         ['zoznam', 'Zoznam hráčov', c.entryIds.length > 0],
+        ['faza', 'Fázy', !!c.stagePlan && c.stagePlan.stages.length > 0],
         ['kvalifikacia', 'Kvalifikácia', !!c.qualification && c.qualification.brackets.length > 0],
         ['skupiny', 'Skupiny', c.groups.length > 0 || !!c.finalGroup],
         ['playoff', 'Play-off 1‑2 / 3‑4', hasPo],
@@ -208,6 +210,28 @@ export function PublicView() {
             <button key={k} className={`sec-tab${cur === k ? ' active' : ''}`} onClick={() => setSec(k)}>{lbl}</button>)}</nav>}
         </div>
 
+        {cur === 'faza' && c.stagePlan && (() => {
+          const plan = c.stagePlan;
+          return <div className="qual-public">
+            {plan.stages.map((st, si) => <div className={`stage-box${st.consolation ? ' stage-cons' : ''}${stageDone(st) ? ' stage-done' : ''}`} key={st.id}>
+              <div className="stage-head"><div><h3>{si + 1}. {st.name}{st.consolation && <span className="stage-tag">útecha</span>}</h3>
+                <span className="muted">{stageSummary(plan, st, em)}</span></div></div>
+              {st.kind === 'groups' && <div className="group-grid">{(st.groups ?? []).map(g =>
+                <div className="group-block" key={g.id}><div className="pb-head"><h4>{g.name}</h4></div>
+                  <GroupTable group={g} map={em} players={data.players} onMatch={m => openM(m, `${st.name} · ${g.name}`)} /></div>)}</div>}
+              {st.kind === 'knockout' && <div className="kbracket">{(st.rounds ?? []).map((r, ri, all) =>
+                <div className={`kround${ri === all.length - 1 ? ' kround-last' : ''}`} key={r.id}>
+                  <div className="br-head"><h4>{r.name}</h4></div>
+                  <div className="kround-body">{r.matches.map(m => <div className="kpair kpair-solo" key={m.id}>
+                    <KMatch m={m} em={em} onClick={() => openM(m, `${st.name} · ${r.name}`)} /></div>)}</div>
+                </div>)}</div>}
+            </div>)}
+            {plan.stages.some(stageDone) && <div className="stage-final"><h3>Konečné poradie</h3>
+              <ol className="final-list">{finalPlacement(plan, c.entryIds, em).map((id, i) =>
+                <li key={id}><b>{i + 1}.</b> {em.get(id)?.name ?? '—'}<em>{em.get(id)?.club || ''}</em></li>)}</ol></div>}
+          </div>;
+        })()}
+
         {cur === 'kvalifikacia' && c.qualification && (() => {
           const q = c.qualification;
           const wins = qualificationWinners(q);
@@ -220,7 +244,7 @@ export function PublicView() {
                 <div className={`kround${ri === all.length - 1 ? ' kround-last' : ''}`} key={r.id}>
                   <div className="br-head"><h4>{r.name}</h4></div>
                   <div className="kround-body">{r.matches.map(m => <div className="kpair kpair-solo" key={m.id}>
-                    <KMatch m={m} em={em} onClick={() => open(m, `${b.name} · ${r.name}`)} /></div>)}</div>
+                    <KMatch m={m} em={em} onClick={() => openM(m, `${b.name} · ${r.name}`)} /></div>)}</div>
                 </div>)}</div>
             </div>)}
           </div>;
