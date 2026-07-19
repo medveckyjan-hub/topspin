@@ -179,11 +179,30 @@ $$;
 -- 3) TURNAJE
 -- ============================================================
 
+-- Zoznam turnajov pre úvodnú stránku: dátum, miesto, kategórie a stav.
 drop function if exists public.topspin_list_tournaments();
 create function public.topspin_list_tournaments()
-returns table(slug text, name text, updated_at timestamptz)
+returns table(slug text, name text, t_date text, venue text, address text,
+              categories text[], reg_open boolean, reg_deadline timestamptz,
+              has_propozicie boolean, has_gallery boolean, has_video boolean, updated_at timestamptz)
 language sql security definer stable set search_path = public as $$
-  select slug, name, updated_at from public.topspin_tournaments order by updated_at desc
+  select t.slug,
+         t.name,
+         nullif(t.data->'settings'->>'date','')    as t_date,
+         nullif(t.data->'settings'->>'venue','')   as venue,
+         nullif(t.data->'settings'->>'address','') as address,
+         coalesce((select array_agg(x->>'name' order by ord)
+                     from jsonb_array_elements(coalesce(t.data->'competitions','[]'::jsonb))
+                          with ordinality as e(x, ord)
+                    where coalesce(x->>'name','') <> ''), '{}') as categories,
+         t.reg_open,
+         t.reg_deadline,
+         exists (select 1 from public.topspin_media m where m.slug = t.slug and m.kind = 'propozicie') as has_propozicie,
+         exists (select 1 from public.topspin_media m where m.slug = t.slug and m.kind = 'photo')      as has_gallery,
+         exists (select 1 from public.topspin_media m where m.slug = t.slug and m.kind = 'video')      as has_video,
+         t.updated_at
+    from public.topspin_tournaments t
+   order by coalesce(nullif(t.data->'settings'->>'date','')::date, t.updated_at::date) desc
 $$;
 
 drop function if exists public.topspin_get_tournament(text);

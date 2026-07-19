@@ -1,7 +1,7 @@
 import type {
   Competition, GenericEntry, Knockout, KnockoutRound, Match, PairEntry, Player,
   SetScore, StandingRow, TeamEntry, TeamNomination, TeamRubber, TeamSystem, TeamSystemId,
-  TeamTie, TournamentGroup, FinalRow } from '../types';
+  TeamTie, TournamentGroup, FinalRow, QualBracket, QualificationStage } from '../types';
 
 export const uid = () => crypto.randomUUID();
 export const emptySets = (bestOf: number): SetScore[] => Array.from({ length: bestOf }, () => ({ a: null, b: null }));
@@ -170,17 +170,70 @@ export function generateRoundRobin(ids: string[], bestOf: number): Match[] {
   return out;
 }
 
+/** Príslušnosť pre oddelenie v žrebe — klub, pri reprezentácii štát. */
+const affiliationOf = (e: GenericEntry): string => (e.club || '').trim().toLowerCase();
+
+/**
+ * Rozdelenie do skupín podľa pravidiel:
+ *  - hadové nasadenie podľa ratingu (najlepší do rôznych skupín),
+ *  - hráči z rovnakého klubu (resp. štátu) sa rozdelia do čo najviac rôznych skupín;
+ *    stretnúť sa môžu až vtedy, keď je ich viac než skupín.
+ * Postupuje sa po pásmach: v každom pásme dostane každá skupina jedného hráča,
+ * pričom sa vyberá taký, ktorý do skupiny nevnesie ďalší klubový konflikt.
+ */
 export function createGroups(entries: GenericEntry[], pref: number, bestOf: 3 | 5 | 7, q: number): TournamentGroup[] {
   const sorted = [...entries].sort((a, b) => b.rating - a.rating || a.name.localeCompare(b.name, 'sk'));
   const sizes = chooseGroupSizes(sorted.length, pref);
-  const buckets = sizes.map(() => [] as GenericEntry[]);
-  let idx = 0, dir = 1; // hadové nasadenie
-  for (const e of sorted) {
-    while (buckets[idx].length >= sizes[idx]) { idx += dir; if (idx >= buckets.length) { idx = buckets.length - 1; dir = -1; } if (idx < 0) { idx = 0; dir = 1; } }
-    buckets[idx].push(e);
-    idx += dir; if (idx >= buckets.length) { idx = buckets.length - 1; dir = -1; } if (idx < 0) { idx = 0; dir = 1; }
+  const n = sizes.length;
+  const buckets: GenericEntry[][] = sizes.map(() => []);
+  const clubs: Map<string, number>[] = sizes.map(() => new Map());
+
+  const countIn = (gi: number, aff: string) => (aff ? clubs[gi].get(aff) ?? 0 : 0);
+  const put = (gi: number, e: GenericEntry) => {
+    buckets[gi].push(e);
+    const aff = affiliationOf(e);
+    if (aff) clubs[gi].set(aff, countIn(gi, aff) + 1);
+  };
+
+  const pool = [...sorted];
+  let band = 0;
+  while (pool.length) {
+    // poradie skupín v tomto pásme = hadové (tam a späť)
+    const order = Array.from({ length: n }, (_, i) => (band % 2 === 0 ? i : n - 1 - i))
+      .filter(gi => buckets[gi].length < sizes[gi]);
+    if (!order.length) break;
+
+    for (const gi of order) {
+      if (!pool.length) break;
+      // vyber najvyššie nasadeného hráča, ktorý do skupiny nevnesie klubový konflikt;
+      // ak taký nie je, ber najvyššie nasadeného s najmenším počtom rovnakého klubu
+      let pick = pool.findIndex(e => countIn(gi, affiliationOf(e)) === 0);
+      if (pick === -1) {
+        let best = 0, bestCount = Infinity;
+        pool.forEach((e, i) => { const c = countIn(gi, affiliationOf(e)); if (c < bestCount) { bestCount = c; best = i; } });
+        pick = best;
+      }
+      put(gi, pool.splice(pick, 1)[0]);
+    }
+    band++;
   }
+
   return buckets.map((b, i) => ({ id: uid(), name: `Skupina ${String.fromCharCode(65 + i)}`, entryIds: b.map(x => x.id), matches: generateRoundRobin(b.map(x => x.id), bestOf), qualifiers: Math.max(0, Math.min(q, b.length)), bestOf }));
+}
+
+/** Kontrola žrebu: skupiny, v ktorých sa stretli hráči z rovnakého klubu. */
+export function clubConflicts(groups: TournamentGroup[], map: Map<string, GenericEntry>): { group: string; club: string; count: number }[] {
+  const out: { group: string; club: string; count: number }[] = [];
+  groups.forEach(g => {
+    const seen = new Map<string, number>();
+    g.entryIds.forEach(id => {
+      const e = map.get(id); if (!e) return;
+      const aff = affiliationOf(e); if (!aff) return;
+      seen.set(aff, (seen.get(aff) ?? 0) + 1);
+    });
+    seen.forEach((count, club) => { if (count > 1) out.push({ group: g.name, club: map.get(g.entryIds.find(id => affiliationOf(map.get(id) ?? { club: '' } as GenericEntry) === club) ?? '')?.club ?? club, count }); });
+  });
+  return out;
 }
 
 export function canMovePlayer(groups: TournamentGroup[], entryId: string, targetId: string) {
@@ -279,7 +332,7 @@ function seedOrder(size: number): number[] {
 const roundName = (count: number) => (count === 2 ? 'Finále' : count === 4 ? 'Semifinále' : count === 8 ? 'Štvrťfinále' : count === 16 ? 'Osemfinále' : `Kolo ${count}`);
 const byeWinner = (a: string | null, b: string | null) => (a && !b ? a : b && !a ? b : null);
 
-type Seed = { id: string; groupIndex: number; position: number };
+type Seed = { id: string; groupIndex: number; position: number; club?: string };
 
 function bracketFromSeeds(seeds: (Seed | null)[], bestOf: 3 | 5 | 7, thirdPlace: boolean): KnockoutRound[] {
   const size = seeds.length;
@@ -300,20 +353,102 @@ function bracketFromSeeds(seeds: (Seed | null)[], bestOf: 3 | 5 | 7, thirdPlace:
   return out;
 }
 
-/** Nasadenie: seed 1 hore / 2 dole, rozloženie bye, vyhýbanie sa 1. kolo hráčom z tej istej skupiny. */
+/**
+ * Nasadenie pavúka PO SKUPINÁCH: seed 1 hore / 2 dole, rozloženie bye.
+ * Jediné pravidlo oddelenia je skupina — postupujúci z tej istej skupiny
+ * (A1 a A2) musia ísť do opačných polovíc pavúka. Klub sa tu nerieši,
+ * o jeho oddelenie sa postaral už žreb do skupín.
+ */
 function placeSeeds(qualified: Seed[]): (Seed | null)[] {
   let size = 1; while (size < qualified.length) size *= 2; size = Math.max(2, size);
   const q = [...qualified].sort((a, b) => a.position - b.position);
   const order = seedOrder(size);
   const slots: (Seed | null)[] = Array(size).fill(null);
   q.forEach((s, i) => { slots[order[i] - 1] = s; });
+
+  const half = size / 2;
+  const halfOf = (i: number) => (i < half ? 0 : 1);
+  const groupsInHalf = (h: number) => {
+    const m = new Map<number, number[]>();
+    slots.forEach((x, i) => { if (x && halfOf(i) === h) m.set(x.groupIndex, [...(m.get(x.groupIndex) ?? []), i]); });
+    return m;
+  };
+
+  // A1 a A2 do opačných polovíc — presúva sa vždy ten horšie nasadený z dvojice
+  // a vymieňa sa len s hráčom, nie s voľným žrebom, aby rozloženie bye
+  // (voľné žreby patria najvyššie nasadeným) zostalo nedotknuté.
+  for (let h = 0; h < 2; h++) {
+    const dup = [...groupsInHalf(h)].filter(([, idxs]) => idxs.length > 1);
+    for (const [gi, idxs] of dup) {
+      const move = idxs.sort((x, y) => (slots[y]!.position - slots[x]!.position))[0]; // najhoršie nasadený
+      const other = 1 - h;
+      let target = -1;
+      for (let k = 0; k < size; k++) {
+        if (halfOf(k) !== other) continue;
+        const b = slots[k];
+        if (!b) continue;                                             // voľný žreb sa nepresúva
+        if (b.groupIndex === gi) continue;                            // tam by konflikt vznikol
+        const back = groupsInHalf(h).get(b.groupIndex) ?? [];
+        if (back.some(i => i !== move)) continue;                     // presun by vytvoril konflikt naopak
+        target = k; break;
+      }
+      if (target >= 0) { const t = slots[move]; slots[move] = slots[target]; slots[target] = t; }
+    }
+  }
+
+  // v 1. kole sa nesmú stretnúť hráči z tej istej skupiny
   for (let i = 0; i < size; i += 2) {
     const a = slots[i], b = slots[i + 1];
     if (a && b && a.groupIndex === b.groupIndex) {
       for (let k = 0; k < size; k += 2) {
         if (k === i) continue;
         const c = slots[k], d = slots[k + 1];
-        if (d && d.groupIndex !== a.groupIndex && (!c || c.groupIndex !== b.groupIndex)) { const t = slots[i + 1]; slots[i + 1] = slots[k + 1]; slots[k + 1] = t; break; }
+        if (d && d.groupIndex !== a.groupIndex && (!c || c.groupIndex !== b.groupIndex)) {
+          const t = slots[i + 1]; slots[i + 1] = slots[k + 1]; slots[k + 1] = t; break;
+        }
+      }
+    }
+  }
+  return slots;
+}
+
+/**
+ * Nasadenie pavúka BEZ SKUPÍN (hrá sa len pavúk). Tu sa oddeľujú kluby:
+ * hráči jedného klubu sa rozložia do rôznych sekcií pavúka (osmín, štvrtín),
+ * aby sa stretli čo najneskôr.
+ */
+function placeSeedsByClub(seeds: Seed[]): (Seed | null)[] {
+  let size = 1; while (size < seeds.length) size *= 2; size = Math.max(2, size);
+  const q = [...seeds].sort((a, b) => a.position - b.position);
+  const order = seedOrder(size);
+  const slots: (Seed | null)[] = Array(size).fill(null);
+  q.forEach((s, i) => { slots[order[i] - 1] = s; });
+
+  // sekcia = blok pavúka danej veľkosti; postupne od najväčších (polovice) po dvojice
+  for (let sec = size / 2; sec >= 2; sec /= 2) {
+    const sectionOf = (i: number) => Math.floor(i / sec);
+    const countIn = (arr: (Seed | null)[], s: number, club: string) =>
+      arr.filter((x, i) => !!x && sectionOf(i) === s && x.club === club).length;
+
+    // nasadení hráči (prvých `sec/2`… prakticky prvých 8) sa nepresúvajú
+    const protectedSeeds = Math.max(2, size / 8);
+    for (let i = 0; i < size; i++) {
+      const a = slots[i];
+      if (!a || !a.club) continue;
+      if (a.position <= protectedSeeds) continue;
+      const sa = sectionOf(i);
+      if (countIn(slots, sa, a.club) <= 1) continue;
+
+      // nájdi výmenu do sekcie, kde tento klub chýba a nevznikne nový konflikt
+      let done = false;
+      for (let k = 0; k < size && !done; k++) {
+        const b = slots[k];
+        const sb = sectionOf(k);
+        if (sb === sa) continue;
+        if (b && b.position <= protectedSeeds) continue;
+        if (countIn(slots, sb, a.club) > 0) continue;
+        if (b && b.club && countIn(slots, sa, b.club) > 0) continue;
+        slots[i] = b; slots[k] = a; done = true;
       }
     }
   }
@@ -322,6 +457,17 @@ function placeSeeds(qualified: Seed[]): (Seed | null)[] {
 
 export function createKnockout(c: Competition, map: Map<string, GenericEntry>): Knockout {
   const ratingOf = (id: string) => map.get(id)?.rating ?? 0;
+
+  // Bez skupín sa hrá len pavúk — nasadzuje sa podľa ratingu a oddeľujú sa kluby.
+  if (c.groups.length === 0) {
+    const ids = c.qualification ? qualifiedForGroups(c.qualification) : c.entryIds;
+    const seeds: Seed[] = [...ids]
+      .sort((a, b) => ratingOf(b) - ratingOf(a) || (map.get(a)?.name ?? '').localeCompare(map.get(b)?.name ?? '', 'sk'))
+      .map((id, i) => ({ id, groupIndex: -1, position: i + 1, club: (map.get(id)?.club || '').trim().toLowerCase() }));
+    const main = seeds.length >= 2 ? bracketFromSeeds(placeSeedsByClub(seeds), c.bestOf, c.thirdPlace) : [];
+    return { main, consolation: [] };
+  }
+
   const collect = (want: 'main' | 'cons'): Seed[] => c.groups.flatMap((g, gi) => standings(g, map)
     .filter(r => (want === 'main' ? r.qualified : !r.qualified))
     .map(r => ({ id: r.entry.id, groupIndex: gi, position: r.position })))
@@ -337,13 +483,33 @@ export function createKnockout(c: Competition, map: Map<string, GenericEntry>): 
 function advanceMain(rounds: KnockoutRound[]): KnockoutRound[] {
   const copy: KnockoutRound[] = structuredClone(rounds);
   const main = copy.filter(r => r.kind !== 'third');
+  const isEmpty = (m?: Match) => !m || (!m.playerAId && !m.playerBId);
+  const wasPlayed = (m: Match) => !!m.specialResult || m.sets.some(s => s.a !== null || s.b !== null);
+
   for (let r = 0; r < main.length - 1; r++) {
-    main[r].matches.forEach((m, i) => {
-      const target = main[r + 1].matches[Math.floor(i / 2)];
-      if (i % 2 === 0) target.playerAId = m.winnerId; else target.playerBId = m.winnerId;
-      const a = target.playerAId, b = target.playerBId;
-      if ((a && !b) || (b && !a)) { target.winnerId = a || b; target.status = 'finished'; }
-      else if (a && b && target.winnerId && ![a, b].includes(target.winnerId)) { target.winnerId = null; target.status = 'scheduled'; target.sets = emptySets(target.sets.length); }
+    const cur = main[r], next = main[r + 1];
+    next.matches.forEach((target, j) => {
+      const f1 = cur.matches[2 * j], f2 = cur.matches[2 * j + 1];
+      const w1 = f1?.winnerId ?? null, w2 = f2?.winnerId ?? null;
+      target.playerAId = w1;
+      target.playerBId = w2;
+
+      const bothKnown = !!w1 && !!w2;
+      // Voľný žreb: protihráč nepríde nikdy, lebo zdrojový zápas nemá hráčov.
+      const bye = (!!w1 && isEmpty(f2)) || (!!w2 && isEmpty(f1));
+
+      if (bye && !bothKnown) { target.winnerId = w1 || w2; target.status = 'finished'; return; }
+
+      // Súper ešte nie je známy → zápas sa nesmie tváriť ako dohratý.
+      if (!bothKnown) {
+        if (!wasPlayed(target)) { target.winnerId = null; target.status = 'scheduled'; }
+        return;
+      }
+
+      // Obaja známi: ponechaj len skutočne odohratý výsledok medzi nimi.
+      if (target.winnerId && (![w1, w2].includes(target.winnerId) || !wasPlayed(target))) {
+        target.winnerId = null; target.status = 'scheduled'; target.sets = emptySets(target.sets.length);
+      }
     });
   }
   const semi = main.at(-2), third = copy.find(r => r.kind === 'third');
@@ -591,4 +757,100 @@ export function createFinalGroup(c: Competition, map: Map<string, GenericEntry>,
   const ids = qual.length ? qual : c.entryIds.slice();
   const bo = (bestOf ?? c.bestOf) as 3 | 5 | 7;
   return { id: uid(), name: 'Finálová skupina', entryIds: ids, matches: generateRoundRobin(ids, bo), qualifiers: 0, bestOf: bo };
+}
+
+// ============================================================
+// KVALIFIKÁCIA — reťazenie fáz: kvalifikácia → skupiny → pavúk + útecha
+// Hrá sa toľko samostatných vetiev, koľko je voľných miest v skupinách.
+// Víťaz každej vetvy postupuje. Nasadení idú do skupín priamo.
+// ============================================================
+
+/** Vytvorí kvalifikáciu: najlepší podľa ratingu idú priamo, zvyšok hrá o `slots` miest. */
+export function createQualification(
+  entryIds: string[],
+  map: Map<string, GenericEntry>,
+  directCount: number,
+  slots: number,
+  bestOf: 3 | 5 | 7 = 5,
+): QualificationStage {
+  const ratingOf = (id: string) => map.get(id)?.rating ?? 0;
+  const sorted = [...entryIds].sort((a, b) => ratingOf(b) - ratingOf(a)
+    || (map.get(a)?.name ?? '').localeCompare(map.get(b)?.name ?? '', 'sk'));
+
+  const direct = Math.max(0, Math.min(directCount, sorted.length));
+  const directIds = sorted.slice(0, direct);
+  const rest = sorted.slice(direct);
+  const n = Math.max(1, Math.min(slots, rest.length));
+
+  // rozdelenie zvyšku do n vetiev — hadovo a s oddelením klubov
+  const buckets: string[][] = Array.from({ length: n }, () => []);
+  const bClubs: Map<string, number>[] = Array.from({ length: n }, () => new Map());
+  const affOf = (id: string) => (map.get(id)?.club || '').trim().toLowerCase();
+  const cap = Math.ceil(rest.length / n);
+  const pool = [...rest];
+  let band = 0;
+  while (pool.length) {
+    const order = Array.from({ length: n }, (_, i) => (band % 2 === 0 ? i : n - 1 - i))
+      .filter(i => buckets[i].length < cap);
+    if (!order.length) break;
+    for (const i of order) {
+      if (!pool.length) break;
+      let pick = pool.findIndex(id => { const a = affOf(id); return !a || !bClubs[i].has(a); });
+      if (pick === -1) {
+        let best = 0, bestCount = Infinity;
+        pool.forEach((id, k) => { const c = bClubs[i].get(affOf(id)) ?? 0; if (c < bestCount) { bestCount = c; best = k; } });
+        pick = best;
+      }
+      const id = pool.splice(pick, 1)[0];
+      buckets[i].push(id);
+      const a = affOf(id); if (a) bClubs[i].set(a, (bClubs[i].get(a) ?? 0) + 1);
+    }
+    band++;
+  }
+
+  const brackets: QualBracket[] = buckets.map((ids, i) => {
+    const seeds: Seed[] = ids.map((id, k) => ({ id, groupIndex: i, position: k + 1 }));
+    return {
+      id: uid(),
+      name: `Kvalifikácia ${i + 1}`,
+      rounds: seeds.length >= 2
+        ? bracketFromSeeds(placeSeeds(seeds), bestOf, false)
+            .map((r, k, all) => ({ ...r, name: k === all.length - 1 ? 'O postup' : `${k + 1}. kolo` }))
+        : [],
+    };
+  });
+
+  return { slots: n, bestOf, directIds, brackets };
+}
+
+/** Posunie víťazov vo všetkých vetvách kvalifikácie. */
+export function advanceQualification(q: QualificationStage): QualificationStage {
+  return { ...q, brackets: q.brackets.map(b => ({ ...b, rounds: advanceKnockout(b.rounds) })) };
+}
+
+/** Víťaz každej vetvy, alebo null ak sa ešte dohráva. */
+export function qualificationWinners(q: QualificationStage): (string | null)[] {
+  return q.brackets.map(bracketWinner);
+}
+
+/** Víťaz vetvy — až keď je dohratý každý zápas s dvoma hráčmi. */
+function bracketWinner(b: QualBracket): string | null {
+  const rounds = b.rounds.filter(r => r.kind !== 'third');
+  if (!rounds.length) return null;
+  const entrants = new Set<string>();
+  rounds[0].matches.forEach(m => { if (m.playerAId) entrants.add(m.playerAId); if (m.playerBId) entrants.add(m.playerBId); });
+  if (entrants.size <= 1) return [...entrants][0] ?? null;
+  for (const r of rounds) for (const m of r.matches) {
+    if (m.playerAId && m.playerBId && !m.winnerId) return null;
+  }
+  return rounds.at(-1)?.matches[0]?.winnerId ?? null;
+}
+
+/** Je kvalifikácia dohratá vo všetkých vetvách? */
+export const qualificationDone = (q: QualificationStage): boolean =>
+  qualificationWinners(q).every(w => w !== null);
+
+/** Zoznam tých, čo idú do skupín: nasadení priamo + víťazi kvalifikácie. */
+export function qualifiedForGroups(q: QualificationStage): string[] {
+  return [...q.directIds, ...qualificationWinners(q).filter((w): w is string => !!w)];
 }

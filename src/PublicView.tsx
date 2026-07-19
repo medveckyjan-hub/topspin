@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { Link as LinkIcon, UserPlus, FileText, Images, Video, Plus, Trophy, CalendarClock } from 'lucide-react';
+import { Link as LinkIcon, UserPlus, FileText, Images, Video, Plus, Trophy, CalendarClock, MapPin } from 'lucide-react';
 import { EntryCard } from './components/EntryCard';
 import { GroupTable } from './components/GroupTable';
 import { MatchOverview, type Side } from './components/MatchOverview';
 import { getTournament, listMedia, listRegistrations, embedUrl, type MediaItem, type Registration } from './lib/supabase';
 import { RegistrationForm } from './components/RegistrationForm';
 import { AuthBar } from './components/AuthBar';
-import { TEAM_SYSTEMS, entryMap, finalOrder, groupRounds, scoreText, setsText, standings, tieTables } from './lib/multisport';
+import { TEAM_SYSTEMS, entryMap, finalOrder, groupRounds, scoreText, setsText, standings, tieTables , qualificationWinners} from './lib/multisport';
 import type { Competition, GenericEntry, KnockoutRound, Match, TournamentState } from './types';
 import './styles.css';
 import { skDate } from './lib/format';
@@ -114,7 +114,8 @@ export function PublicView() {
 
   return <Shell>
     <div className="pub-head">
-      <div><span className="kicker">Výsledky turnaja</span><h1>{name}</h1><p>{skDate(data.settings.date)}{data.settings.venue ? ` · ${data.settings.venue}` : ''}</p><span className="auto-refresh">↻ Výsledky sa obnovujú automaticky</span></div>
+      <div><span className="kicker">Výsledky turnaja</span><h1>{name}</h1><p>{skDate(data.settings.date)}{data.settings.venue ? ` · ${data.settings.venue}` : ''}</p>
+        {data.settings.address && <a className="venue-link" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.settings.address)}`} target="_blank" rel="noreferrer"><MapPin size={14} />{data.settings.address}</a>}<span className="auto-refresh">↻ Výsledky sa obnovujú automaticky</span></div>
       <div className="pub-qr"><QRCodeSVG value={url} size={104} /><button className="link-btn" onClick={() => navigator.clipboard?.writeText(url)}><LinkIcon size={13} />Kopírovať odkaz</button></div>
     </div>
 
@@ -152,6 +153,13 @@ export function PublicView() {
     </section>}
 
     {tab === 'propozicie' && <section className="card pub-card"><h2>Propozície</h2>
+      {data.settings.address && <div className="venue-map">
+        <h3>Kde sa turnaj hrá</h3>
+        <p className="venue-addr"><MapPin size={15} />{data.settings.venue ? `${data.settings.venue} · ` : ''}{data.settings.address}</p>
+        <div className="map-frame"><iframe title="Mapa miesta konania" loading="lazy" allowFullScreen
+          src={`https://www.google.com/maps?q=${encodeURIComponent(data.settings.address)}&output=embed`} /></div>
+        <a className="button" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(data.settings.address)}`} target="_blank" rel="noreferrer">Navigovať</a>
+      </div>}
       <div className="media-list">{media.filter(x => x.kind === 'propozicie').map(x => <a className="media-doc" key={x.id} href={x.url} target="_blank" rel="noreferrer">
         <FileText size={20} /><div><strong>{x.title || 'Propozície turnaja'}</strong><span>Otvoriť PDF</span></div></a>)}</div>
     </section>}
@@ -177,6 +185,7 @@ export function PublicView() {
       const fo = finalOrder(c, em);
       const secs: [typeof sec, string, boolean][] = [
         ['zoznam', 'Zoznam hráčov', c.entryIds.length > 0],
+        ['kvalifikacia', 'Kvalifikácia', !!c.qualification && c.qualification.brackets.length > 0],
         ['skupiny', 'Skupiny', c.groups.length > 0 || !!c.finalGroup],
         ['playoff', 'Play-off 1‑2 / 3‑4', hasPo],
         ['pavuk', 'Pavúk — K.O.', hasKo],
@@ -198,6 +207,24 @@ export function PublicView() {
           {avail.length > 1 && <nav className="sec-tabs">{avail.map(([k, lbl]) =>
             <button key={k} className={`sec-tab${cur === k ? ' active' : ''}`} onClick={() => setSec(k)}>{lbl}</button>)}</nav>}
         </div>
+
+        {cur === 'kvalifikacia' && c.qualification && (() => {
+          const q = c.qualification;
+          const wins = qualificationWinners(q);
+          return <div className="qual-public">
+            <p className="hint">{q.directIds.length} účastníkov postúpilo do skupín priamo, o zvyšných {q.brackets.length} miest sa hrá v kvalifikácii.</p>
+            {q.brackets.map((b, bi) => <div className="qual-branch" key={b.id}>
+              <div className="pb-head"><h3>{b.name}</h3>
+                {wins[bi] ? <span className="qual-win">postupuje {label(wins[bi])}</span> : <span className="muted">hrá sa</span>}</div>
+              <div className="kbracket">{b.rounds.filter(r => r.kind !== 'third').map((r, ri, all) =>
+                <div className={`kround${ri === all.length - 1 ? ' kround-last' : ''}`} key={r.id}>
+                  <div className="br-head"><h4>{r.name}</h4></div>
+                  <div className="kround-body">{r.matches.map(m => <div className="kpair kpair-solo" key={m.id}>
+                    <KMatch m={m} em={em} onClick={() => open(m, `${b.name} · ${r.name}`)} /></div>)}</div>
+                </div>)}</div>
+            </div>)}
+          </div>;
+        })()}
 
         {cur === 'zoznam' && (() => {
           const list = c.entryIds.map(id => em.get(id)).filter(Boolean);

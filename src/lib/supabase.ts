@@ -7,7 +7,11 @@ const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 export const cloudReady = Boolean(url && anon);
 export const supabase = cloudReady ? createClient(url, anon) : (null as unknown as ReturnType<typeof createClient>);
 
-export type TournamentListItem = { id: string; slug: string; name: string; date: string; updated_at: string };
+export type TournamentListItem = {
+  slug: string; name: string; t_date: string | null; venue: string | null; address: string | null;
+  categories: string[]; reg_open: boolean; reg_deadline: string | null;
+  has_propozicie: boolean; has_gallery: boolean; has_video: boolean; updated_at: string;
+};
 
 /** Verejný zoznam turnajov (bez PIN, bez dát). */
 export async function listTournaments(): Promise<TournamentListItem[]> {
@@ -33,6 +37,7 @@ export function normalizeState(raw: unknown, name = 'Turnaj'): TournamentState {
       matchMinutes: s.matchMinutes ?? 20,
       restMinutes: s.restMinutes ?? 5,
       startTime: s.startTime ?? '09:00',
+      address: s.address ?? '',
     },
     players: Array.isArray(d.players) ? d.players : [],
     pairs: Array.isArray(d.pairs) ? d.pairs : [],

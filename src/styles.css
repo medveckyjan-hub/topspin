@@ -501,3 +501,66 @@ tr.gt-second td{background:#f7f9fb}
 .err-detail{width:100%;text-align:left;margin-top:8px}
 .err-detail summary{font-size:.78rem;color:#8a95a4;cursor:pointer}
 .err-detail code{display:block;margin-top:8px;background:#f4f6f8;border-radius:8px;padding:10px;font-size:.76rem;color:#c72834;word-break:break-word}
+
+/* ============ karty turnajov na úvodnej stránke ============ */
+.tcards{display:grid;gap:14px;margin-top:12px}
+.tcard{border:2px solid #e0e6ec;border-radius:16px;padding:16px 18px;background:#fff;transition:.15s}
+.tcard-prebieha{border-color:#18a058;box-shadow:0 0 0 4px #18a05812}
+.tcard-odohrany{border-color:#2f6fd0}
+.tcard-pripravuje{border-color:#e0e6ec}
+.tcard:hover{box-shadow:0 8px 22px #0b12200f}
+.tc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.tc-title a{text-decoration:none}
+.tc-title h3{margin:0 0 6px;font-size:1.05rem;color:#172033;line-height:1.25}
+.tc-title a:hover h3{color:#e62834}
+.tc-meta{display:flex;gap:14px;flex-wrap:wrap}
+.tc-meta span{display:inline-flex;align-items:center;gap:6px;font-size:.82rem;color:#5a6675;font-weight:600}
+.tc-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.tc-badge{font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;border-radius:999px;padding:5px 12px}
+.tc-badge-prebieha{background:#18a058;color:#fff}
+.tc-badge-odohrany{background:#2f6fd0;color:#fff}
+.tc-badge-pripravuje{background:#f0f3f6;color:#5a6675}
+.tc-count{display:flex;gap:10px}
+.tc-count div{text-align:center;min-width:34px}
+.tc-count b{display:block;font-size:1.05rem;color:#172033;font-variant-numeric:tabular-nums;line-height:1.1}
+.tc-count span{font-size:.6rem;color:#8a95a4;text-transform:uppercase;font-weight:700}
+.tc-bottom{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid #eef1f4}
+.tc-cats{display:flex;gap:6px;flex-wrap:wrap}
+.tc-cat{font-size:.72rem;font-weight:700;color:#3a4657;background:#f2f5f8;border-radius:8px;padding:5px 10px}
+.tc-cat-empty{color:#9aa4b2;font-weight:600;background:transparent;padding-left:0}
+.tc-links{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tc-link{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:700;color:#2f6fd0;text-decoration:none;border-radius:8px;padding:6px 10px}
+.tc-link:hover{background:#f2f5f8}
+.tc-reg{color:#18a058;background:#eaf7ef}
+.tc-open{color:#e62834}
+/* miesto konania a mapa */
+.venue-link{display:inline-flex;align-items:center;gap:6px;font-size:.84rem;color:#2f6fd0;text-decoration:none;font-weight:600;margin-top:4px}
+.venue-link:hover{text-decoration:underline}
+.venue-map{margin-bottom:20px}
+.venue-map h3{margin:0 0 8px;font-size:.95rem}
+.venue-addr{display:flex;align-items:center;gap:7px;color:#5a6675;font-size:.86rem;margin:0 0 10px;font-weight:600}
+.map-frame{position:relative;padding-top:52%;border-radius:14px;overflow:hidden;border:1px solid #e4e9ee;margin-bottom:10px}
+.map-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+@media(max-width:560px){.tc-top{flex-direction:column}.tc-right{align-items:flex-start}}
+
+/* ============ kvalifikácia ============ */
+.qual-setup{display:grid;gap:12px}
+.qual-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.qual-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0}
+.qual-summary div{background:#f6f8fa;border-radius:12px;padding:12px 14px}
+.qual-summary b{display:block;font-size:1.3rem;color:#172033;line-height:1.1}
+.qual-summary span{font-size:.74rem;color:#7b8798;font-weight:600}
+.qual-summary .qd.done{background:#eaf7ef}
+.qual-summary .qd.done b{color:#18a058}
+.qual-brackets{display:grid;gap:18px}
+.qual-branch{border:1px solid #e4e9ee;border-radius:14px;padding:14px 16px}
+.qual-win{font-size:.78rem;font-weight:800;color:#18a058;background:#eaf7ef;border-radius:999px;padding:5px 12px}
+.qual-direct{margin-top:18px}
+.qual-direct h3{font-size:.92rem;margin:0 0 8px}
+.qual-chips{display:flex;flex-wrap:wrap;gap:6px}
+.qual-actions{margin-top:18px}
+.qual-public{display:grid;gap:16px}
+.club-warn{display:grid;gap:4px;background:#fff6e6;border:1px solid #f0c987;border-radius:12px;padding:12px 14px;margin:12px 0}
+.club-warn b{font-size:.86rem;color:#8a5a00}
+.club-warn span{font-size:.82rem;color:#6b4a10;font-weight:600}
+.club-warn em{font-size:.75rem;color:#96774a;font-style:normal}

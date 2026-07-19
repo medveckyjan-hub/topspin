@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, UserRoundCog, Trophy, Layers3, TableProperties, GitBranch, CalendarClock, Medal, Database, UserPlus, RotateCcw, Shield, FileDown } from 'lucide-react';
+import { Shuffle, LayoutDashboard, Users, UserRoundCog, Trophy, Layers3, TableProperties, GitBranch, CalendarClock, Medal, Database, UserPlus, RotateCcw, Shield, FileDown } from 'lucide-react';
 import type { View } from '../types';
 const items: [View, string, any][] = [
   ['dashboard', 'Prehľad', LayoutDashboard],
@@ -9,6 +9,7 @@ const items: [View, string, any][] = [
   ['competitions', 'Súťaže', Trophy],
   ['groups', 'Skupiny', Layers3],
   ['results', 'Výsledky skupín', TableProperties],
+  ['qualification', 'Kvalifikácia', Shuffle],
   ['knockout', 'Pavúky', GitBranch],
   ['schedule', 'Harmonogram', CalendarClock],
   ['order', 'Poradie', Medal],
