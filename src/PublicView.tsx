@@ -91,10 +91,14 @@ export function PublicView() {
     ? undefined
     : ((data.competitions ?? []).find(c => c.id === tab) ?? (data.competitions ?? [])[0]);
 
+  /** Otvorí detail zápasu — dostupné vo všetkých blokoch tejto stránky. */
+  const openMatchOf = (c: Competition, em: Map<string, GenericEntry>) =>
+    (m: Match, ev: string) => setMo({ comp: c, em, m, event: ev });
+
   const bracketRounds = (rounds: KnockoutRound[], c: Competition, em: Map<string, GenericEntry>) => {
     const main = rounds.filter(r => r.kind !== 'third');
     const third = rounds.find(r => r.kind === 'third');
-    const openM = (m: Match, ev: string) => setMo({ comp: c, em, m, event: ev });
+    const openM = openMatchOf(c, em);
     return <>
       <div className="kbracket">{main.map((r, ri) => {
         const last = ri === main.length - 1;
@@ -212,6 +216,7 @@ export function PublicView() {
 
         {cur === 'faza' && c.stagePlan && (() => {
           const plan = c.stagePlan;
+          const openM = openMatchOf(c, em);
           return <div className="qual-public">
             {plan.stages.map((st, si) => <div className={`stage-box${st.consolation ? ' stage-cons' : ''}${stageDone(st) ? ' stage-done' : ''}`} key={st.id}>
               <div className="stage-head"><div><h3>{si + 1}. {st.name}{st.consolation && <span className="stage-tag">útecha</span>}</h3>
@@ -234,6 +239,7 @@ export function PublicView() {
 
         {cur === 'kvalifikacia' && c.qualification && (() => {
           const q = c.qualification;
+          const openM = openMatchOf(c, em);
           const wins = qualificationWinners(q);
           return <div className="qual-public">
             <p className="hint">{q.directIds.length} účastníkov postúpilo do skupín priamo, o zvyšných {q.brackets.length} miest sa hrá v kvalifikácii.</p>

@@ -11,16 +11,6 @@ import {
 // a všetci nakoniec dostanú presné umiestnenie.
 // ============================================================
 
-
-
-/** Odkiaľ fáza berie účastníkov. */
-export type StageSource =
-  | { from: 'entries' }                                  // všetci prihlásení
-  | { from: 'stage'; stageId: string; take: 'qualified' | 'eliminated' };
-
-
-
-
 export const newStage = (p: Partial<Stage> & { name: string; kind: StageKind; source: StageSource }): Stage => ({
   id: uid(), bestOf: 5, consolation: false, preferredSize: 4, qualifiersPerGroup: 2,
   thirdPlace: true, seeding: 'groups', ...p,
