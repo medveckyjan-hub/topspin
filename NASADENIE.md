@@ -29,6 +29,9 @@ Testy jadra potrebujú skompilované jadro ako `src/lib/multisport.mjs`.
 - `src/lib/draw.test.mjs` — oddelenie klubov v žrebe do skupín, 10 kontrol
 - `src/lib/bracket.test.mjs` — nasadzovanie do pavúka v oboch režimoch, 14 kontrol
 - `src/lib/stages.test.mjs` — reťaz fáz a konečné poradie, 19 kontrol
+- `src/lib/schedule.test.mjs` — harmonogram a fyzickí hráči, 16 kontrol
+- `src/lib/audit-fixes.test.mjs` — opravy z externého auditu, 7 kontrol
+- `src/lib/tableview.test.mjs` — zápis od stola vo všetkých fázach, 6 kontrol
 
 ## Reťaz fáz (Fázy turnaja)
 Súťaž môže mať ľubovoľnú postupnosť kôl. Každá fáza je skupiny alebo pavúk

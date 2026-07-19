@@ -317,6 +317,13 @@ export function PublicView() {
           ...c.groups.flatMap(g => g.playoff ? [{ c, phase: `${g.name} · o 1.`, kind: 'Play-off', m: g.playoff.final, lab }, ...(g.playoff.third ? [{ c, phase: `${g.name} · o 3.`, kind: 'Play-off', m: g.playoff.third, lab }] : [])] : []),
           ...c.ko.main.flatMap(r => r.matches.map(m => ({ c, phase: r.name, kind: 'Pavúk', m, lab }))),
           ...c.ko.consolation.flatMap(r => r.matches.map(m => ({ c, phase: `Útecha · ${r.name}`, kind: 'Pavúk', m, lab }))),
+    ...(c.qualification?.brackets ?? []).flatMap(b => b.rounds.flatMap(r => r.matches.map(m => ({ c, phase: `Kvalifikácia · ${b.name} · ${r.name}`, m })))),
+    ...(c.stagePlan?.stages ?? []).flatMap(st => [
+      ...(st.groups ?? []).flatMap(g => g.matches.map(m => ({ c, phase: `${st.name} · ${g.name}`, m }))),
+      ...(st.rounds ?? []).flatMap(r => r.matches.map(m => ({ c, phase: `${st.name} · ${r.name}`, m }))),
+    ]),
+    ...(c.finalGroup?.matches ?? []).map(m => ({ c, phase: 'Finálová skupina', m })),
+    ...c.teamTies.flatMap(t => t.rubbers.map(rb => ({ c, phase: `Stretnutie · ${rb.label}`, m: rb.match }))),
         ];
       }).filter(x => x.m.scheduledTime).sort((a, b) => (a.m.scheduledTime || '').localeCompare(b.m.scheduledTime || '') || (a.m.table ?? 0) - (b.m.table ?? 0));
       const phases = ['Skupiny', 'Finálová skupina', 'Play-off', 'Pavúk'];

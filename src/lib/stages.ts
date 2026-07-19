@@ -51,9 +51,12 @@ export function stageDone(stage: Stage): boolean {
     const gs = stage.groups ?? [];
     return gs.length > 0 && gs.every(g => g.matches.every(m => !!m.winnerId || !!m.specialResult));
   }
-  const rounds = (stage.rounds ?? []).filter(r => r.kind !== 'third');
-  if (!rounds.length) return false;
-  return rounds.every(r => r.matches.every(m => !m.playerAId || !m.playerBId || !!m.winnerId));
+  const all = stage.rounds ?? [];
+  const main = all.filter(r => r.kind !== 'third');
+  if (!main.length) return false;
+  // zápas o 3. miesto sa počíta tiež — inak by sa fáza vyhlásila za dohratú,
+  // kým sa ešte hrá o bronz, a otvorila by sa ďalšia fáza priskoro
+  return all.every(r => r.matches.every(m => !m.playerAId || !m.playerBId || !!m.winnerId));
 }
 
 /** Presné poradie vo vnútri fázy. */

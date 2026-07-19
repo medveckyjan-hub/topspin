@@ -11,7 +11,11 @@ import './styles.css';
 type Slot =
   | { kind: 'group'; compId: string; groupId: string; matchId: string }
   | { kind: 'playoff'; compId: string; groupId: string; slot: 'final' | 'third' }
-  | { kind: 'ko'; compId: string; side: 'main' | 'consolation'; roundIdx: number; matchId: string };
+  | { kind: 'ko'; compId: string; side: 'main' | 'consolation'; roundIdx: number; matchId: string }
+  | { kind: 'final'; compId: string; matchId: string }
+  | { kind: 'qual'; compId: string; bracketId: string; roundIdx: number; matchId: string }
+  | { kind: 'stage'; compId: string; stageId: string; groupId?: string; roundIdx?: number; matchId: string }
+  | { kind: 'team'; compId: string; tieId: string; rubberId: string };
 
 type Row = { slot: Slot; comp: Competition; phase: string; m: Match; bestOf: number; a: string; b: string };
 
@@ -51,6 +55,28 @@ function TableInner() {
       });
       (['main', 'consolation'] as const).forEach(side => c.ko[side].forEach((r, ri) => r.matches.forEach(m =>
         out.push({ slot: { kind: 'ko', compId: c.id, side, roundIdx: ri, matchId: m.id }, comp: c, phase: `${side === 'consolation' ? 'Útecha · ' : ''}${r.name}`, m, bestOf: r.bestOf, a: nm(m.playerAId), b: nm(m.playerBId) }))));
+
+      c.finalGroup?.matches.forEach(m => out.push({ slot: { kind: 'final', compId: c.id, matchId: m.id },
+        comp: c, phase: 'Finálová skupina', m, bestOf: c.finalGroup!.bestOf, a: nm(m.playerAId), b: nm(m.playerBId) }));
+
+      c.qualification?.brackets.forEach(b => b.rounds.forEach((r, ri) => r.matches.forEach(m =>
+        out.push({ slot: { kind: 'qual', compId: c.id, bracketId: b.id, roundIdx: ri, matchId: m.id },
+          comp: c, phase: `Kvalifikácia · ${b.name} · ${r.name}`, m, bestOf: r.bestOf, a: nm(m.playerAId), b: nm(m.playerBId) }))));
+
+      c.stagePlan?.stages.forEach(st => {
+        st.groups?.forEach(g => g.matches.forEach(m =>
+          out.push({ slot: { kind: 'stage', compId: c.id, stageId: st.id, groupId: g.id, matchId: m.id },
+            comp: c, phase: `${st.name} · ${g.name}`, m, bestOf: g.bestOf, a: nm(m.playerAId), b: nm(m.playerBId) })));
+        st.rounds?.forEach((r, ri) => r.matches.forEach(m =>
+          out.push({ slot: { kind: 'stage', compId: c.id, stageId: st.id, roundIdx: ri, matchId: m.id },
+            comp: c, phase: `${st.name} · ${r.name}`, m, bestOf: r.bestOf, a: nm(m.playerAId), b: nm(m.playerBId) })));
+      });
+
+      c.teamTies.forEach(tie => tie.rubbers.forEach(rb =>
+        out.push({ slot: { kind: 'team', compId: c.id, tieId: tie.id, rubberId: rb.id },
+          comp: c, phase: `Stretnutie · ${rb.label}`, m: rb.match, bestOf: rb.match.sets.length || c.bestOf,
+          a: rb.homePlayerIds.map(id => data.players.find(p => p.id === id)?.name ?? '—').join(' / ') || nm(rb.match.playerAId),
+          b: rb.awayPlayerIds.map(id => data.players.find(p => p.id === id)?.name ?? '—').join(' / ') || nm(rb.match.playerBId) })));
     });
     return out.filter(r => r.m.playerAId && r.m.playerBId);
   }, [data]);
@@ -71,9 +97,43 @@ function TableInner() {
     } else if (slot.kind === 'playoff') {
       const g = c.groups.find(x => x.id === slot.groupId)!;
       if (g.playoff) g.playoff = { ...g.playoff, [slot.slot]: updated } as typeof g.playoff;
-    } else {
+    } else if (slot.kind === 'ko') {
       const r = c.ko[slot.side][slot.roundIdx];
       r.matches = r.matches.map(m => (m.id === slot.matchId ? updated : m));
+      // víťaz musí postúpiť do ďalšieho kola — bez tohto sa výsledok uložil,
+      // ale súper v nasledujúcom kole sa nikdy neobjavil
+      c.ko[slot.side] = advanceKnockout(c.ko[slot.side]);
+    } else if (slot.kind === 'final') {
+      if (c.finalGroup) c.finalGroup.matches = c.finalGroup.matches.map(m => (m.id === slot.matchId ? updated : m));
+    } else if (slot.kind === 'qual') {
+      const b = c.qualification?.brackets.find(x => x.id === slot.bracketId);
+      const r = b?.rounds[slot.roundIdx];
+      if (r) r.matches = r.matches.map(m => (m.id === slot.matchId ? updated : m));
+      if (c.qualification) c.qualification = advanceQualification(c.qualification);
+    } else if (slot.kind === 'stage') {
+      const st = c.stagePlan?.stages.find(x => x.id === slot.stageId);
+      if (st) {
+        if (slot.groupId) {
+          const g = st.groups?.find(x => x.id === slot.groupId);
+          if (g) g.matches = g.matches.map(m => (m.id === slot.matchId ? updated : m));
+        } else if (st.rounds && slot.roundIdx !== undefined) {
+          const r = st.rounds[slot.roundIdx];
+          if (r) r.matches = r.matches.map(m => (m.id === slot.matchId ? updated : m));
+          const moved = advanceStage(st);
+          st.rounds = moved.rounds;
+        }
+      }
+    } else {
+      const tie = c.teamTies.find(x => x.id === slot.tieId);
+      const rb = tie?.rubbers.find(x => x.id === slot.rubberId);
+      if (rb) rb.match = updated;
+      if (tie) {
+        const scored = scoreTeamTie(tie, tie.rubbers[0]?.match.sets.length || c.bestOf);
+        tie.homeScore = scored.homeScore;
+        tie.awayScore = scored.awayScore;
+        tie.winnerTeamId = scored.winnerTeamId;
+        tie.status = scored.status;
+      }
     }
     setData(next);
     setState('saving');
@@ -116,12 +176,20 @@ function ScoreSheet({ row, onClose, onSave }: { row: Row; onClose: () => void; o
   const num = (v: number | null) => v ?? 0;
   const bump = (i: number, side: 'a' | 'b', d: number) =>
     setSets(cur => cur.map((s, j) => (j === i ? { ...s, [side]: Math.max(0, num(side === 'a' ? s.a : s.b) + d) } : s)));
-  const won = sets.reduce<{ a: number; b: number }>((acc, s) => {
+  // Počítadlo aj tlačidlo riadi ten istý validátor ako v admine —
+  // set 7:4 alebo 1:0 nie je vyhratý set.
+  const draft = { ...row.m, sets, specialResult: null } as Match;
+  const check = validateMatch(draft, row.bestOf);
+  const scored = normalizeMatch(draft, row.bestOf);
+  const won = { a: 0, b: 0 };
+  sets.forEach(s => {
     const a = num(s.a), b = num(s.b);
-    if (a > b) acc.a++; else if (b > a) acc.b++;
-    return acc;
-  }, { a: 0, b: 0 });
-  const finished = won.a >= need || won.b >= need;
+    if (a === 0 && b === 0) return;
+    const ok = Math.max(a, b) >= 11 && Math.abs(a - b) >= 2;
+    if (!ok) return;
+    if (a > b) won.a++; else if (b > a) won.b++;
+  });
+  const finished = check.valid && check.complete && !!scored.winnerId;
 
   return <div className="tbl-shell sheet">
     <header className="tbl-top">
@@ -150,9 +218,10 @@ function ScoreSheet({ row, onClose, onSave }: { row: Row; onClose: () => void; o
 
     <div className="sheet-actions">
       <button className="button primary big" disabled={!finished}
-        onClick={() => onSave(normalizeMatch({ ...row.m, sets, specialResult: null }, row.bestOf))}>
-        <Check size={18} />{finished ? 'Uložiť výsledok' : `Chýba ${need} vyhratých setov`}
+        onClick={() => onSave(scored)}>
+        <Check size={18} />{finished ? 'Uložiť výsledok' : 'Zápas ešte nie je dohratý'}
       </button>
+      {!finished && <p className="sheet-warn">{check.message || `Na výhru treba ${need} platných setov (min. 11 bodov a rozdiel 2).`}</p>}
       <div className="sheet-special">
         <button className="button" onClick={() => onSave(normalizeMatch({ ...row.m, specialResult: 'WO_A' }, row.bestOf))}>{row.a} neprišiel</button>
         <button className="button" onClick={() => onSave(normalizeMatch({ ...row.m, specialResult: 'WO_B' }, row.bestOf))}>{row.b} neprišiel</button>

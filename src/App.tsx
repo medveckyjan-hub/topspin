@@ -7,7 +7,7 @@ import {
   TEAM_SYSTEMS, applySubstitution, autoSchedule, buildTeamTie, canMovePlayer, createGroupPlayoff, createGroups, createKnockout,
   advanceKnockout as advance, createFinalGroup, entryMap, finalOrder, groupRounds, movePlayer, normalizeMatch, resizeSets, scoreTeamTie, scoreText, setsText, setsToWin, setGroupBestOf, setRoundBestOf, standings, tieTables, uid, validateMatch,
   createQualification, advanceQualification, qualificationWinners, qualificationDone, qualifiedForGroups,
-  clubConflicts } from './lib/multisport';
+  clubConflicts, scheduleConflicts } from './lib/multisport';
 import { advanceStage, buildStage, finalPlacement, newStage, readyStages, stageDone, stageRanking, stageSummary } from './lib/stages';
 import type { Stage, StagePlan } from './types';
 import { cloudReady, listPlayers, searchPlayers, upsertPlayer, type DbPlayer } from './lib/supabase';
@@ -664,14 +664,36 @@ function Knockout({ state, update, label, openMatch, setNotice }: { state: Tourn
 function Schedule({ state, setState, setNotice, label }: { state: TournamentState; setState: React.Dispatch<React.SetStateAction<TournamentState>>; setNotice: (s: string) => void; label: (id: string | null) => string }) {
   const s0 = state.settings;
   const setS = (patch: Partial<typeof s0>) => setState(st => ({ ...st, settings: { ...st.settings, ...patch } }));
+  // kto je za ktorou prihláškou — potrebné na kontrolu kolízií
+  const physIndex = useMemo(() => {
+    const idx = new Map<string, string[]>();
+    state.competitions.forEach(c => entryMap(c, state.players, state.pairs, state.teams)
+      .forEach((e, id) => idx.set(id, e.memberIds?.length ? e.memberIds : [id])));
+    return idx;
+  }, [state.competitions, state.players, state.pairs, state.teams]);
+  const conflicts = useMemo(() => scheduleConflicts(state.competitions, physIndex, state.settings.matchMinutes),
+    [state.competitions, physIndex, state.settings.matchMinutes]);
+  const playerName = (id: string) => state.players.find(p => p.id === id)?.name ?? id;
+
   const run = (phase: SchedulePhase, what: string) => {
-    setState(st => ({ ...st, competitions: autoSchedule(st.competitions, st.settings.tables, st.settings.startTime || '09:00', st.settings.matchMinutes, st.settings.restMinutes, phase) }));
+    setState(st => {
+      // kto je za ktorou prihláškou — dvojhra = hráč, štvorhra = pár, družstvo = zostava
+      const idx = new Map<string, string[]>();
+      st.competitions.forEach(c => entryMap(c, st.players, st.pairs, st.teams)
+        .forEach((e, id) => idx.set(id, e.memberIds?.length ? e.memberIds : [id])));
+      return { ...st, competitions: autoSchedule(st.competitions, st.settings.tables, st.settings.startTime || '09:00', st.settings.matchMinutes, st.settings.restMinutes, phase, idx) };
+    });
     setNotice(`Naplánované: ${what} (zápas ${s0.matchMinutes} min, prestávka ${s0.restMinutes} min).`);
   };
   const clearAll = () => setState(st => ({ ...st, competitions: st.competitions.map(c => ({
     ...c,
     groups: c.groups.map(g => ({ ...g, matches: g.matches.map(m => ({ ...m, table: undefined, scheduledTime: undefined })), playoff: g.playoff ? { final: { ...g.playoff.final, table: undefined, scheduledTime: undefined }, third: g.playoff.third ? { ...g.playoff.third, table: undefined, scheduledTime: undefined } : null } : undefined })),
     ko: { main: c.ko.main.map(r => ({ ...r, matches: r.matches.map(m => ({ ...m, table: undefined, scheduledTime: undefined })) })), consolation: c.ko.consolation.map(r => ({ ...r, matches: r.matches.map(m => ({ ...m, table: undefined, scheduledTime: undefined })) })) },
+    qualification: c.qualification ? { ...c.qualification, brackets: c.qualification.brackets.map(b => ({ ...b, rounds: b.rounds.map(r => ({ ...r, matches: r.matches.map(m => ({ ...m, table: undefined, scheduledTime: undefined })) })) })) } : undefined,
+    stagePlan: c.stagePlan ? { stages: c.stagePlan.stages.map(st => ({ ...st,
+      groups: st.groups?.map(g => ({ ...g, matches: g.matches.map(m => ({ ...m, table: undefined, scheduledTime: undefined })) })),
+      rounds: st.rounds?.map(r => ({ ...r, matches: r.matches.map(m => ({ ...m, table: undefined, scheduledTime: undefined })) })) })) } : undefined,
+    teamTies: c.teamTies.map(t => ({ ...t, rubbers: t.rubbers.map(rb => ({ ...rb, match: { ...rb.match, table: undefined, scheduledTime: undefined } })) })),
   })) }));
 
   const rows = state.competitions.flatMap(c => [
@@ -679,9 +701,21 @@ function Schedule({ state, setState, setNotice, label }: { state: TournamentStat
     ...c.groups.flatMap(g => g.playoff ? [{ c, phase: `${g.name} · o 1. miesto`, m: g.playoff.final }, ...(g.playoff.third ? [{ c, phase: `${g.name} · o 3. miesto`, m: g.playoff.third }] : [])] : []),
     ...c.ko.main.flatMap(r => r.matches.map(m => ({ c, phase: r.name, m }))),
     ...c.ko.consolation.flatMap(r => r.matches.map(m => ({ c, phase: `Útecha · ${r.name}`, m }))),
+    ...(c.qualification?.brackets ?? []).flatMap(b => b.rounds.flatMap(r => r.matches.map(m => ({ c, phase: `Kvalifikácia · ${b.name} · ${r.name}`, m })))),
+    ...(c.stagePlan?.stages ?? []).flatMap(st => [
+      ...(st.groups ?? []).flatMap(g => g.matches.map(m => ({ c, phase: `${st.name} · ${g.name}`, m }))),
+      ...(st.rounds ?? []).flatMap(r => r.matches.map(m => ({ c, phase: `${st.name} · ${r.name}`, m }))),
+    ]),
+    ...(c.finalGroup?.matches ?? []).map(m => ({ c, phase: 'Finálová skupina', m })),
+    ...c.teamTies.flatMap(t => t.rubbers.map(rb => ({ c, phase: `Stretnutie · ${rb.label}`, m: rb.match }))),
   ]).filter(x => x.m.scheduledTime).sort((a, b) => (a.m.scheduledTime || '').localeCompare(b.m.scheduledTime || '') || (a.m.table ?? 0) - (b.m.table ?? 0));
 
   return <div className="matches-stack">
+    {conflicts.length > 0 && <div className="club-warn">
+      <b>Kolízia v harmonograme — hráč má dva zápasy naraz:</b>
+      <span>{conflicts.slice(0, 6).map(x => `${playerName(x.playerId)} o ${x.time} (${x.a} × ${x.b})`).join(' · ')}{conflicts.length > 6 ? ` a ďalších ${conflicts.length - 6}` : ''}</span>
+      <em>Preplánuj harmonogram — plánovač už kolíziám predchádza — alebo uprav čas zápasu ručne.</em>
+    </div>}
     <section className="card form-card"><h2>Nastavenie rozpisu</h2>
       <div className="settings-grid">
         <label>Začiatok<input type="time" value={s0.startTime || '09:00'} onChange={e => setS({ startTime: e.target.value })} /></label>
@@ -695,6 +729,9 @@ function Schedule({ state, setState, setNotice, label }: { state: TournamentStat
         <button className="button" onClick={() => run('groups', 'skupiny')}>Len skupiny</button>
         <button className="button" onClick={() => run('playoff', 'play-off skupín')}>Len play-off</button>
         <button className="button" onClick={() => run('ko', 'vyraďovacie pavúky')}>Len pavúky</button>
+        <button className="button" onClick={() => run('qualification', 'kvalifikáciu')}>Len kvalifikácia</button>
+        <button className="button" onClick={() => run('stages', 'fázy turnaja')}>Len fázy</button>
+        <button className="button" onClick={() => run('teams', 'družstevné stretnutia')}>Len družstvá</button>
         <button className="button" onClick={() => { if (confirm('Zmazať všetky časy a stoly?')) clearAll(); }}>Vymazať rozpis</button>
       </div>
     </section>

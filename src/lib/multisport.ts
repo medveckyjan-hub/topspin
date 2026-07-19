@@ -529,37 +529,57 @@ export function setRoundBestOf(round: KnockoutRound, bestOf: 3 | 5 | 7): Knockou
 }
 
 // ============================ HARMONOGRAM ============================
-export type SchedulePhase = 'all' | 'groups' | 'playoff' | 'ko';
+export type SchedulePhase = 'all' | 'qualification' | 'groups' | 'playoff' | 'ko' | 'stages' | 'teams';
 
 /** Automatický rozpis času a stolov. Plánuje skupiny, play-off skupín aj vyraďovacie pavúky.
  *  Zohľadňuje voľné stoly aj oddych hráča medzi zápasmi; kolá pavúka idú za sebou. */
-export function autoSchedule(competitions: Competition[], tables: number, start = '09:00', matchMinutes = 20, restMinutes = 5, phase: SchedulePhase = 'all'): Competition[] {
+export function autoSchedule(competitions: Competition[], tables: number, start = '09:00', matchMinutes = 20, restMinutes = 5, phase: SchedulePhase = 'all', entryIndex?: Map<string, string[]>): Competition[] {
   const [h, min] = start.split(':').map(Number);
   const base = (h || 0) * 60 + (min || 0);
   const tableFree = Array(Math.max(1, tables)).fill(base);
+  /** obsadenosť sa vedie na FYZICKÝCH hráčov — inak by hráč mohol mať
+   *  dvojhru a štvorhru v tom istom čase na dvoch stoloch */
   const busy = new Map<string, number>();
   const copy: Competition[] = structuredClone(competitions);
   const hhmm = (t: number) => `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
 
+  /** Rozloží ID prihlášky na skutočných hráčov: dvojhra = hráč,
+   *  štvorhra = obaja z páru, družstvo = celá zostava, "a+b" = obaja. */
+  const physical = (entryId: string | null): string[] => {
+    if (!entryId) return [];
+    const direct = entryIndex?.get(entryId);
+    if (direct && direct.length) return direct;
+    if (entryId.includes('+')) return entryId.split('+').filter(Boolean);
+    return [entryId];
+  };
+  const readyAt = (m: Match): number => {
+    let t = 0;
+    for (const id of [...physical(m.playerAId), ...physical(m.playerBId)]) t = Math.max(t, busy.get(id) ?? 0);
+    return t;
+  };
+
   const place = (m: Match, notBefore: number): number => {
+    const playersReady = readyAt(m);
     let bestTable = 0, bestStart = Infinity;
     for (let t = 0; t < tableFree.length; t++) {
-      const ready = Math.max(tableFree[t], notBefore, busy.get(m.playerAId ?? '') ?? 0, busy.get(m.playerBId ?? '') ?? 0);
+      const ready = Math.max(tableFree[t], notBefore, playersReady);
       if (ready < bestStart) { bestStart = ready; bestTable = t; }
     }
     m.table = bestTable + 1;
     m.scheduledTime = hhmm(bestStart);
     const end = bestStart + matchMinutes;
     tableFree[bestTable] = end;
-    if (m.playerAId) busy.set(m.playerAId, end + restMinutes);
-    if (m.playerBId) busy.set(m.playerBId, end + restMinutes);
+    for (const id of [...physical(m.playerAId), ...physical(m.playerBId)]) busy.set(id, end + restMinutes);
     return end;
   };
   const clear = (m: Match) => { m.table = undefined; m.scheduledTime = undefined; };
 
+  const doQual = phase === 'all' || phase === 'qualification';
   const doGroups = phase === 'all' || phase === 'groups';
   const doPlayoff = phase === 'all' || phase === 'playoff';
   const doKo = phase === 'all' || phase === 'ko';
+  const doStages = phase === 'all' || phase === 'stages';
+  const doTeams = phase === 'all' || phase === 'teams';
 
   let floor = base;
   // ak sa niektorá fáza nepreplánováva, nadviaž na už naplánované zápasy
@@ -568,6 +588,28 @@ export function autoSchedule(competitions: Competition[], tables: number, start 
     ...(doPlayoff ? [] : c.groups.flatMap(g => g.playoff ? [g.playoff.final, ...(g.playoff.third ? [g.playoff.third] : [])] : [])),
   ]).map(m => m.scheduledTime).filter(Boolean) as string[];
   existing.forEach(t => { const [a, b] = t.split(':').map(Number); floor = Math.max(floor, a * 60 + b + matchMinutes); });
+  if (doQual) {
+    // kvalifikačné vetvy sa hrajú ako prvé, kolo po kole naprieč všetkými vetvami
+    for (const c of copy) {
+      const q = c.qualification;
+      if (!q) continue;
+      const depth = Math.max(0, ...q.brackets.map(b => b.rounds.filter(r => r.kind !== 'third').length));
+      let roundFloor = base;
+      for (let ri = 0; ri < depth; ri++) {
+        let end = roundFloor;
+        for (const b of q.brackets) {
+          const r = b.rounds.filter(x => x.kind !== 'third')[ri];
+          if (!r) continue;
+          for (const m of r.matches) {
+            if (!m.playerAId || !m.playerBId) { clear(m); continue; }
+            end = Math.max(end, place(m, roundFloor));
+          }
+        }
+        roundFloor = end;
+      }
+      floor = Math.max(floor, roundFloor);
+    }
+  }
   if (doGroups) {
     const all = copy.flatMap(c => c.groups.flatMap(g => g.matches.map(m => ({ m })))).sort((a, b) => a.m.round - b.m.round);
     for (const { m } of all) { if (!m.playerAId || !m.playerBId) { clear(m); continue; } floor = Math.max(floor, place(m, base)); }
@@ -589,6 +631,63 @@ export function autoSchedule(competitions: Competition[], tables: number, start 
           for (const m of r.matches) end = Math.max(end, place(m, roundFloor));
           roundFloor = end;
         }
+      }
+    }
+  }
+  if (doStages) {
+    // fázy sa plánujú v poradí závislostí — čo z čoho vychádza
+    for (const c of copy) {
+      const stages = c.stagePlan?.stages ?? [];
+      if (!stages.length) continue;
+      const depthOf = new Map<string, number>();
+      const walk = (id: string, guard = 0): number => {
+        if (depthOf.has(id)) return depthOf.get(id)!;
+        if (guard > stages.length) return 0;            // poistka proti cyklu
+        const st = stages.find(x => x.id === id);
+        const d = st && st.source.from === 'stage' ? walk(st.source.stageId, guard + 1) + 1 : 0;
+        depthOf.set(id, d);
+        return d;
+      };
+      stages.forEach(st => walk(st.id));
+      const ordered = [...stages].sort((a, b) => (depthOf.get(a.id) ?? 0) - (depthOf.get(b.id) ?? 0));
+
+      let stageFloor = floor;
+      for (const st of ordered) {
+        let end = stageFloor;
+        if (st.kind === 'groups') {
+          const ms = (st.groups ?? []).flatMap(g => g.matches).sort((a, b) => a.round - b.round);
+          for (const m of ms) {
+            if (!m.playerAId || !m.playerBId) { clear(m); continue; }
+            end = Math.max(end, place(m, stageFloor));
+          }
+        } else {
+          let roundFloor = stageFloor;
+          for (const r of st.rounds ?? []) {
+            let rEnd = roundFloor;
+            for (const m of r.matches) {
+              if (!m.playerAId || !m.playerBId) { clear(m); continue; }
+              rEnd = Math.max(rEnd, place(m, roundFloor));
+            }
+            roundFloor = rEnd;
+          }
+          end = Math.max(end, roundFloor);
+        }
+        stageFloor = end;
+        floor = Math.max(floor, end);
+      }
+    }
+  }
+  if (doTeams) {
+    // družstevné stretnutie: jeho jednotlivé zápasy idú za sebou v poradí systému
+    for (const c of copy) {
+      for (const tie of c.teamTies) {
+        let tieFloor = floor;
+        for (const rb of [...tie.rubbers].sort((a, b) => a.order - b.order)) {
+          const m = rb.match;
+          if (!m.playerAId || !m.playerBId) { clear(m); continue; }
+          tieFloor = Math.max(tieFloor, place(m, tieFloor));
+        }
+        floor = Math.max(floor, tieFloor);
       }
     }
   }
@@ -898,6 +997,62 @@ export function bracketRanking(rounds: KnockoutRound[], map: Map<string, Generic
     });
     losers.sort((a, b) => (map.get(b)?.rating ?? 0) - (map.get(a)?.rating ?? 0));
     losers.forEach(push);
+  }
+  return out;
+}
+
+/** Kolízie v harmonograme: ten istý fyzický hráč má dva zápasy v prekrývajúcom sa čase. */
+export function scheduleConflicts(
+  competitions: Competition[],
+  entryIndex: Map<string, string[]>,
+  matchMinutes = 20,
+): { playerId: string; time: string; a: string; b: string }[] {
+  const mins = (t?: string) => { if (!t) return null; const [x, y] = t.split(':').map(Number); return x * 60 + y; };
+  const physical = (id: string | null): string[] => {
+    if (!id) return [];
+    const d = entryIndex.get(id);
+    if (d && d.length) return d;
+    return id.includes('+') ? id.split('+').filter(Boolean) : [id];
+  };
+
+  type Slot = { start: number; label: string; players: string[] };
+  const slots: Slot[] = [];
+  const add = (m: Match, label: string) => {
+    const st = mins(m.scheduledTime);
+    if (st === null) return;
+    slots.push({ start: st, label, players: [...physical(m.playerAId), ...physical(m.playerBId)] });
+  };
+
+  competitions.forEach(c => {
+    c.groups.forEach(g => {
+      g.matches.forEach(m => add(m, `${c.name} · ${g.name}`));
+      if (g.playoff) { add(g.playoff.final, `${c.name} · ${g.name} play-off`); if (g.playoff.third) add(g.playoff.third, `${c.name} · ${g.name} play-off`); }
+    });
+    c.finalGroup?.matches.forEach(m => add(m, `${c.name} · finálová skupina`));
+    (['main', 'consolation'] as const).forEach(side => c.ko[side].forEach(r => r.matches.forEach(m => add(m, `${c.name} · ${r.name}`))));
+    c.qualification?.brackets.forEach(b => b.rounds.forEach(r => r.matches.forEach(m => add(m, `${c.name} · ${b.name}`))));
+    c.stagePlan?.stages.forEach(st => {
+      st.groups?.forEach(g => g.matches.forEach(m => add(m, `${c.name} · ${st.name} · ${g.name}`)));
+      st.rounds?.forEach(r => r.matches.forEach(m => add(m, `${c.name} · ${st.name} · ${r.name}`)));
+    });
+    c.teamTies.forEach(t => t.rubbers.forEach(rb => add(rb.match, `${c.name} · stretnutie`)));
+  });
+
+  const hhmm = (t: number) => `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+  const out: { playerId: string; time: string; a: string; b: string }[] = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < slots.length; i++) {
+    for (let j = i + 1; j < slots.length; j++) {
+      const overlap = Math.abs(slots[i].start - slots[j].start) < matchMinutes;
+      if (!overlap) continue;
+      for (const p of slots[i].players) {
+        if (!slots[j].players.includes(p)) continue;
+        const key = `${p}|${slots[i].start}|${slots[j].start}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ playerId: p, time: hhmm(Math.min(slots[i].start, slots[j].start)), a: slots[i].label, b: slots[j].label });
+      }
+    }
   }
   return out;
 }

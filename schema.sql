@@ -392,10 +392,20 @@ language sql security definer stable set search_path = public as $$
    order by name limit 500
 $$;
 
+-- Zápis do spoločnej databázy hráčov smie len prihlásený používateľ,
+-- ktorý má prístup aspoň k jednému turnaju. Bez toho by ktokoľvek
+-- mohol prepísať klub, rating či fotku hociktorému hráčovi.
 create or replace function public.topspin_upsert_player(p_name text, p_club text, p_rating int, p_gender text, p_photo text)
 returns void language plpgsql security definer set search_path = public as $$
 declare k text;
 begin
+  if auth.uid() is null then raise exception 'Na úpravu databázy hráčov musíš byť prihlásený.'; end if;
+  if not (public.topspin_can_create()
+          or exists (select 1 from public.topspin_tournaments t where t.owner_id = auth.uid())
+          or exists (select 1 from public.topspin_access a
+                      where lower(a.email) = lower(coalesce(auth.jwt() ->> 'email','')))) then
+    raise exception 'Nemáš oprávnenie meniť databázu hráčov.';
+  end if;
   k := lower(btrim(coalesce(p_name,'')));
   if k = '' then return; end if;
   insert into public.topspin_players(name, name_key, club, rating, gender, photo)
@@ -580,7 +590,8 @@ grant execute on function public.topspin_list_registrations(text)   to anon, aut
 grant execute on function public.topspin_registration_state(text)   to anon, authenticated;
 grant execute on function public.topspin_list_media(text)           to anon, authenticated;
 grant execute on function public.topspin_search_players(text)       to anon, authenticated;
-grant execute on function public.topspin_upsert_player(text, text, int, text, text) to anon, authenticated;
+grant execute on function public.topspin_upsert_player(text, text, int, text, text) to authenticated;
+revoke execute on function public.topspin_upsert_player(text, text, int, text, text) from anon;
 grant execute on function public.topspin_register(text, text, text, text, integer, date, text, text, text[], text, text) to anon, authenticated;
 
 grant execute on function public.topspin_my_tournaments()           to authenticated;
