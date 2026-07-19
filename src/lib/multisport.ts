@@ -16,22 +16,18 @@ export function resizeSets(sets: SetScore[], bestOf: number): SetScore[] {
 
 // ============================ TÍMOVÉ SYSTÉMY ============================
 export const TEAM_SYSTEMS: Record<TeamSystemId, TeamSystem> = {
-  CORBILLON: { id: 'CORBILLON', name: 'Corbillon Cup (2 hráči)', rosterMin: 2, rosterMax: 4, activePlayers: 2, winTarget: 3, allowOneSubstitution: true, rubbers: [
+  CORBILLON: { id: 'CORBILLON', name: 'Corbillon Cup (2–4 hráči, 4 dvojhry + štvorhra)', rosterMin: 2, rosterMax: 4, activePlayers: 2, winTarget: 3, allowOneSubstitution: false, rubbers: [
     { order: 1, kind: 'singles', homeSlot: 'A', awaySlot: 'X', label: 'A – X' },
     { order: 2, kind: 'singles', homeSlot: 'B', awaySlot: 'Y', label: 'B – Y' },
     { order: 3, kind: 'doubles', homeSlot: 'AB', awaySlot: 'XY', label: 'Štvorhra' },
     { order: 4, kind: 'singles', homeSlot: 'A', awaySlot: 'Y', label: 'A – Y' },
     { order: 5, kind: 'singles', homeSlot: 'B', awaySlot: 'X', label: 'B – X' }] },
-  SWAYTHLING: { id: 'SWAYTHLING', name: 'Swaythling Cup (3 hráči)', rosterMin: 3, rosterMax: 4, activePlayers: 3, winTarget: 5, allowOneSubstitution: true, rubbers: [
+  SWAYTHLING: { id: 'SWAYTHLING', name: 'New Swaythling Cup (3 hráči, 5 dvojhier)', rosterMin: 3, rosterMax: 3, activePlayers: 3, winTarget: 3, allowOneSubstitution: false, rubbers: [
     { order: 1, kind: 'singles', homeSlot: 'A', awaySlot: 'X', label: 'A – X' },
     { order: 2, kind: 'singles', homeSlot: 'B', awaySlot: 'Y', label: 'B – Y' },
     { order: 3, kind: 'singles', homeSlot: 'C', awaySlot: 'Z', label: 'C – Z' },
-    { order: 4, kind: 'singles', homeSlot: 'B', awaySlot: 'X', label: 'B – X' },
-    { order: 5, kind: 'singles', homeSlot: 'A', awaySlot: 'Z', label: 'A – Z' },
-    { order: 6, kind: 'singles', homeSlot: 'C', awaySlot: 'Y', label: 'C – Y' },
-    { order: 7, kind: 'singles', homeSlot: 'B', awaySlot: 'Z', label: 'B – Z' },
-    { order: 8, kind: 'singles', homeSlot: 'C', awaySlot: 'X', label: 'C – X' },
-    { order: 9, kind: 'singles', homeSlot: 'A', awaySlot: 'Y', label: 'A – Y' }] },
+    { order: 4, kind: 'singles', homeSlot: 'A', awaySlot: 'Y', label: 'A – Y' },
+    { order: 5, kind: 'singles', homeSlot: 'B', awaySlot: 'X', label: 'B – X' }] },
   OLYMPIC: { id: 'OLYMPIC', name: 'Olympijský tímový systém', rosterMin: 3, rosterMax: 4, activePlayers: 3, winTarget: 3, allowOneSubstitution: true, rubbers: [
     { order: 1, kind: 'doubles', homeSlot: 'BC', awaySlot: 'YZ', label: 'Štvorhra B/C – Y/Z' },
     { order: 2, kind: 'singles', homeSlot: 'A', awaySlot: 'X', label: 'A – X' },
@@ -64,16 +60,16 @@ export const TEAM_SYSTEMS: Record<TeamSystemId, TeamSystem> = {
     { order: 3, kind: 'singles', homeSlot: 'C', awaySlot: 'Z', label: 'C – Z' },
     { order: 4, kind: 'singles', homeSlot: 'A', awaySlot: 'Y', label: 'A – Y' },
     { order: 5, kind: 'singles', homeSlot: 'B', awaySlot: 'X', label: 'B – X' }] },
-  TEAM3_9S: { id: 'TEAM3_9S', name: 'Trojčlenné družstvá 3 vs. 3 (9 dvojhier)', rosterMin: 3, rosterMax: 5, activePlayers: 3, winTarget: 5, allowOneSubstitution: true, rubbers: [
+  TEAM3_9S: { id: 'TEAM3_9S', name: 'ITTF Best of 9 (3 hráči, 9 dvojhier)', rosterMin: 3, rosterMax: 3, activePlayers: 3, winTarget: 5, allowOneSubstitution: false, rubbers: [
     { order: 1, kind: 'singles', homeSlot: 'A', awaySlot: 'X', label: 'A – X' },
     { order: 2, kind: 'singles', homeSlot: 'B', awaySlot: 'Y', label: 'B – Y' },
     { order: 3, kind: 'singles', homeSlot: 'C', awaySlot: 'Z', label: 'C – Z' },
-    { order: 4, kind: 'singles', homeSlot: 'A', awaySlot: 'Y', label: 'A – Y' },
-    { order: 5, kind: 'singles', homeSlot: 'B', awaySlot: 'X', label: 'B – X' },
-    { order: 6, kind: 'singles', homeSlot: 'C', awaySlot: 'X', label: 'C – X' },
-    { order: 7, kind: 'singles', homeSlot: 'A', awaySlot: 'Z', label: 'A – Z' },
-    { order: 8, kind: 'singles', homeSlot: 'B', awaySlot: 'Z', label: 'B – Z' },
-    { order: 9, kind: 'singles', homeSlot: 'C', awaySlot: 'Y', label: 'C – Y' }] },
+    { order: 4, kind: 'singles', homeSlot: 'B', awaySlot: 'X', label: 'B – X' },
+    { order: 5, kind: 'singles', homeSlot: 'A', awaySlot: 'Z', label: 'A – Z' },
+    { order: 6, kind: 'singles', homeSlot: 'C', awaySlot: 'Y', label: 'C – Y' },
+    { order: 7, kind: 'singles', homeSlot: 'B', awaySlot: 'Z', label: 'B – Z' },
+    { order: 8, kind: 'singles', homeSlot: 'C', awaySlot: 'X', label: 'C – X' },
+    { order: 9, kind: 'singles', homeSlot: 'A', awaySlot: 'Y', label: 'A – Y' }] },
   MIXED_TEAM: { id: 'MIXED_TEAM', name: 'Zmiešané družstvá (chlapec + dievča)', rosterMin: 2, rosterMax: 4, activePlayers: 2, winTarget: 3, allowOneSubstitution: true, rubbers: [
     { order: 1, kind: 'singles', homeSlot: 'A', awaySlot: 'X', label: 'Chlapci: A – X' },
     { order: 2, kind: 'singles', homeSlot: 'B', awaySlot: 'Y', label: 'Dievčatá: B – Y' },

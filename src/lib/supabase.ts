@@ -134,11 +134,15 @@ export type Registration = {
   id: string; first_name: string; last_name: string; club: string;
   birth_year: number | null; license_until: string | null; country: string;
   gender: string; categories: string[]; email?: string | null; note?: string | null;
-  checked_in?: boolean; paid?: boolean; created_at: string;
+  checked_in?: boolean; paid?: boolean;
+  privacy_consent?: boolean; privacy_consent_at?: string | null;
+  media_consent?: boolean; media_consent_at?: string | null; consent_version?: string | null;
+  created_at: string;
 };
 export type RegistrationInput = {
   first: string; last: string; club: string; year: number | null; license: string | null;
   country: string; gender: string; categories: string[]; email: string; note: string;
+  privacyConsent: boolean; mediaConsent: boolean; consentVersion: string;
 };
 
 export async function listRegistrations(slug: string): Promise<Registration[]> {
@@ -152,6 +156,8 @@ export async function registerPlayer(slug: string, r: RegistrationInput): Promis
     p_slug: slug, p_first: r.first, p_last: r.last, p_club: r.club, p_year: r.year,
     p_license: r.license, p_country: r.country, p_gender: r.gender,
     p_categories: r.categories, p_email: r.email, p_note: r.note,
+    p_privacy_consent: r.privacyConsent, p_media_consent: r.mediaConsent,
+    p_consent_version: r.consentVersion,
   });
   if (error) throw error;
 }

@@ -4,7 +4,8 @@ import { Check, ChevronLeft, Lock, Minus, Plus, RefreshCw } from 'lucide-react';
 import { getTournament, isConflict, saveTournament } from './lib/supabase';
 import { AuthGate } from './components/AuthGate';
 import { AuthBar } from './components/AuthBar';
-import { entryMap, normalizeMatch, scoreText, setsToWin } from './lib/multisport';
+import { advanceKnockout, advanceQualification, entryMap, normalizeMatch, scoreTeamTie, scoreText, setsToWin, validateMatch } from './lib/multisport';
+import { advanceStage } from './lib/stages';
 import type { Competition, Match, TournamentState } from './types';
 import './styles.css';
 

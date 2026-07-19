@@ -119,11 +119,13 @@ export function RegistrationsAdmin({ slug, state, setState, setNotice }: {
         <span className="reg-sum">Prezentácia: <b>{regs.filter(r => r.checked_in).length}/{regs.length}</b> · Zaplatené: <b>{regs.filter(r => r.paid).length}/{regs.length}</b></span>
       </div>
       {err ? <p className="muted">{err}</p> : regs.length === 0 ? <p className="muted">Zatiaľ žiadne prihlášky. Odkaz na registráciu je na verejnej stránke turnaja.</p> :
-        <div className="table-scroll"><table><thead><tr><th>#</th><th>Meno</th><th>Klub</th><th>Rok</th><th>Licencia</th><th>Poh.</th><th>Kategórie</th><th>Prez.</th><th>Zapl.</th><th>E-mail</th><th /></tr></thead><tbody>
+        <div className="table-scroll"><table><thead><tr><th>#</th><th>Meno</th><th>Klub</th><th>Rok</th><th>Licencia</th><th>Poh.</th><th>Kategórie</th><th>OÚ</th><th>Foto/video</th><th>Prez.</th><th>Zapl.</th><th>E-mail</th><th /></tr></thead><tbody>
           {regs.map((r, i) => <tr key={r.id}><td>{i + 1}</td>
             <td><strong>{r.first_name} {r.last_name}</strong></td><td>{r.club || '—'}</td>
             <td>{r.birth_year ?? '—'}</td><td>{r.license_until ? skDate(r.license_until) : '—'}</td>
             <td>{r.gender}</td><td>{r.categories?.join(', ') || '—'}</td>
+            <td title={r.privacy_consent_at ? `Potvrdené ${skDate(r.privacy_consent_at)}` : 'Súhlas neevidovaný'}><span className={r.privacy_consent ? 'consent-yes' : 'consent-no'}>{r.privacy_consent ? 'Áno' : 'Nie'}</span></td>
+            <td title={r.media_consent_at ? `Potvrdené ${skDate(r.media_consent_at)}` : 'Súhlas neudelený'}><span className={r.media_consent ? 'consent-yes' : 'consent-muted'}>{r.media_consent ? 'Áno' : 'Nie'}</span></td>
             <td><input type="checkbox" checked={!!r.checked_in} onChange={e => flag(r, e.target.checked, null)} /></td>
             <td><input type="checkbox" checked={!!r.paid} onChange={e => flag(r, null, e.target.checked)} /></td>
             <td className="reg-mail">{r.email || '—'}</td>

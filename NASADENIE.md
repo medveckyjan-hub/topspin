@@ -1,12 +1,16 @@
 # TOPSPIN — ako nasadiť zmeny
 
 ## Databáza
-Spúšťa sa **jediný súbor**: `schema.sql`.
+Pri novej inštalácii spusti **celý súbor `schema.sql`**.
 Dá sa spustiť opakovane, dáta sa nestratia. Staršie SQL súbory sú
 v priečinku `archiv_sql/` len ako záznam — **nikdy ich nespúšťaj**.
 
-Supabase → SQL Editor → New query → vlož celý `schema.sql` → Run.
-Na konci vypíše počty turnajov, zakladateľov a hráčov.
+Pri aktualizácii už existujúcej databázy na verziu so súhlasmi najprv spusti:
+`MIGRATION_CONSENTS_2026_07.sql`.
+Až potom nasaď nový frontend. Inak nová registrácia skončí chybou RPC parametrov.
+
+Supabase → SQL Editor → New query → vlož SQL → Run.
+Na konci plného `schema.sql` sa vypíšu počty turnajov, zakladateľov a hráčov.
 
 ## Aplikácia (GitHub)
 Nahraj zmenené súbory do repozitára `topspin`, Netlify nasadí sám.
@@ -54,3 +58,15 @@ je nad útechou.
 - **Hrá sa len pavúk (bez skupín):** nasadzuje sa podľa ratingu a kluby sa
   rozdeľujú do sekcií — pri 32-ke ide 8 hráčov jedného klubu do 8 rôznych osmín.
 - V oboch prípadoch zostáva nasadenie a rozloženie voľných žrebov nedotknuté.
+
+
+## Súhlasy pri verejnej registrácii
+- súhlas so spracovaním osobných údajov je povinný,
+- súhlas s fotografiami a videozáznamami je dobrovoľný,
+- databáza eviduje hodnotu súhlasu, čas potvrdenia a verziu textu,
+- organizátor vidí oba súhlasy v tabuľke prihlásených.
+
+## Družstvové formáty – opravené názvy
+- **New Swaythling Cup:** 3 hráči, 5 dvojhier, koniec pri 3 víťazstvách,
+- **Corbillon Cup:** 2–4 hráči, 4 dvojhry + štvorhra, koniec pri 3 víťazstvách,
+- pôvodný deväťzápasový „Swaythling“ je zachovaný ako **ITTF Best of 9**.

@@ -12,7 +12,14 @@ describe('multi-event core', () => {
   it('drží skupiny v rozsahu 3–12', () => { for (let n = 3; n < 100; n++) { const s = chooseGroupSizes(n, 5); expect(s.reduce((a, b) => a + b, 0)).toBe(n); expect(Math.min(...s)).toBeGreaterThanOrEqual(3); expect(Math.max(...s)).toBeLessThanOrEqual(12); } });
   it('vytvorí každý pár v skupine práve raz', () => { const m = generateRoundRobin(['a', 'b', 'c', 'd', 'e'], 5); expect(m).toHaveLength(10); expect(new Set(m.map(x => [x.playerAId, x.playerBId].sort().join('-'))).size).toBe(10); });
   it('validuje sety', () => { expect(isValidSet(11, 9)).toBe(true); expect(isValidSet(12, 10)).toBe(true); expect(isValidSet(11, 10)).toBe(false); });
-  it('obsahuje medzinárodné aj ligové systémy', () => { expect(TEAM_SYSTEMS.CORBILLON.rubbers).toHaveLength(5); expect(TEAM_SYSTEMS.SWAYTHLING.rubbers).toHaveLength(9); expect(TEAM_SYSTEMS.OLYMPIC.rubbers[0].kind).toBe('doubles'); });
+  it('obsahuje správny Corbillon a New Swaythling systém', () => {
+    expect(TEAM_SYSTEMS.CORBILLON.rubbers.map(r => `${r.homeSlot}-${r.awaySlot}`)).toEqual(['A-X', 'B-Y', 'AB-XY', 'A-Y', 'B-X']);
+    expect(TEAM_SYSTEMS.CORBILLON.winTarget).toBe(3);
+    expect(TEAM_SYSTEMS.SWAYTHLING.rubbers.map(r => `${r.homeSlot}-${r.awaySlot}`)).toEqual(['A-X', 'B-Y', 'C-Z', 'A-Y', 'B-X']);
+    expect(TEAM_SYSTEMS.SWAYTHLING.winTarget).toBe(3);
+    expect(TEAM_SYSTEMS.TEAM3_9S.rubbers).toHaveLength(9);
+    expect(TEAM_SYSTEMS.OLYMPIC.rubbers[0].kind).toBe('doubles');
+  });
   it('povolí len jedno striedanie na družstvo v stretnutí', () => { const h: TeamEntry = { id: 'h', name: 'H', club: '', playerIds: ['a', 'b', 'c'] }, a: TeamEntry = { id: 'a', name: 'A', club: '', playerIds: ['x', 'y', 'z'] }; let tie = buildTeamTie('c', h, a, 'CORBILLON', 5); tie = applySubstitution(tie, 'home', 'a', 'c', 4, 5); expect(tie.nomination.homeSub?.inPlayerId).toBe('c'); expect(() => applySubstitution(tie, 'home', 'b', 'a', 5, 5)).toThrow(); });
 
   it('ITTF minitabuľka rozhodne 3-cyklus setovým pomerom', () => {

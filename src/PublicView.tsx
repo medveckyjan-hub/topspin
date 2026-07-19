@@ -317,16 +317,15 @@ export function PublicView() {
           ...c.groups.flatMap(g => g.playoff ? [{ c, phase: `${g.name} · o 1.`, kind: 'Play-off', m: g.playoff.final, lab }, ...(g.playoff.third ? [{ c, phase: `${g.name} · o 3.`, kind: 'Play-off', m: g.playoff.third, lab }] : [])] : []),
           ...c.ko.main.flatMap(r => r.matches.map(m => ({ c, phase: r.name, kind: 'Pavúk', m, lab }))),
           ...c.ko.consolation.flatMap(r => r.matches.map(m => ({ c, phase: `Útecha · ${r.name}`, kind: 'Pavúk', m, lab }))),
-    ...(c.qualification?.brackets ?? []).flatMap(b => b.rounds.flatMap(r => r.matches.map(m => ({ c, phase: `Kvalifikácia · ${b.name} · ${r.name}`, m })))),
-    ...(c.stagePlan?.stages ?? []).flatMap(st => [
-      ...(st.groups ?? []).flatMap(g => g.matches.map(m => ({ c, phase: `${st.name} · ${g.name}`, m }))),
-      ...(st.rounds ?? []).flatMap(r => r.matches.map(m => ({ c, phase: `${st.name} · ${r.name}`, m }))),
-    ]),
-    ...(c.finalGroup?.matches ?? []).map(m => ({ c, phase: 'Finálová skupina', m })),
-    ...c.teamTies.flatMap(t => t.rubbers.map(rb => ({ c, phase: `Stretnutie · ${rb.label}`, m: rb.match }))),
+          ...(c.qualification?.brackets ?? []).flatMap(b => b.rounds.flatMap(r => r.matches.map(m => ({ c, phase: `${b.name} · ${r.name}`, kind: 'Kvalifikácia', m, lab })))),
+          ...(c.stagePlan?.stages ?? []).flatMap(st => [
+            ...(st.groups ?? []).flatMap(g => g.matches.map(m => ({ c, phase: `${st.name} · ${g.name}`, kind: 'Fázy', m, lab }))),
+            ...(st.rounds ?? []).flatMap(r => r.matches.map(m => ({ c, phase: `${st.name} · ${r.name}`, kind: 'Fázy', m, lab }))),
+          ]),
+          ...c.teamTies.flatMap(t => t.rubbers.map(rb => ({ c, phase: `Stretnutie · ${rb.label}`, kind: 'Družstvá', m: rb.match, lab }))),
         ];
       }).filter(x => x.m.scheduledTime).sort((a, b) => (a.m.scheduledTime || '').localeCompare(b.m.scheduledTime || '') || (a.m.table ?? 0) - (b.m.table ?? 0));
-      const phases = ['Skupiny', 'Finálová skupina', 'Play-off', 'Pavúk'];
+      const phases = ['Skupiny', 'Finálová skupina', 'Play-off', 'Pavúk', 'Kvalifikácia', 'Fázy', 'Družstvá'];
       return <section className="card pub-card"><h2>Časový harmonogram</h2>
         {rows.length === 0 ? <p className="muted">Harmonogram zatiaľ nie je zverejnený.</p> :
           phases.filter(ph => rows.some(r => r.kind === ph)).map(ph => <div key={ph} className="sched-phase">
