@@ -142,6 +142,12 @@ a.brand:hover{opacity:.85}
 .card-stats strong{display:block;font-size:1.3rem;color:#172033;font-variant-numeric:tabular-nums}
 .card-stats span{font-size:.72rem;color:#7b8798;font-weight:700}
 .entry-matches{display:grid;gap:8px}
+/* Karta hráča: zápasy zoskupené po súťažiach, aby bolo vidno, kde všade štartoval */
+.card-comp{margin-top:14px}
+.card-comp:first-of-type{margin-top:10px}
+.card-comp-h{margin:0 0 8px;font-size:.9rem;color:#172033;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.card-comp-h .muted{font-size:.75rem;font-weight:600}
+.em-when{display:flex;gap:10px;margin-top:4px;font-size:.72rem;color:#7b8798;font-variant-numeric:tabular-nums}
 .entry-match{border:1px solid #eceff2;border-radius:12px;padding:10px 12px}
 .em-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
 .em-phase{font-size:.7rem;font-weight:800;color:#9aa4b2;text-transform:uppercase;letter-spacing:.04em}
@@ -594,3 +600,17 @@ tr.gt-second td{background:#f7f9fb}
 .final-list b{min-width:26px;color:#e62834}
 .final-list em{margin-left:auto;font-style:normal;font-size:.74rem;color:#8a95a4}
 .sheet-warn{margin:8px 0 0;font-size:.82rem;color:#c72834;text-align:center;font-weight:600}
+
+/* Hromadný výber účastníkov — pri 460 hráčoch sa nedá klikať po jednom */
+.picker{display:grid;gap:10px}
+.picker-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.picker-tools .picker-search{flex:1 1 220px;min-width:180px}
+.picker-tools select{flex:0 1 auto}
+.picker-bulk{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 10px;background:#f6f8fa;border:1px solid #eceff2;border-radius:12px}
+.picker-bulk .button{padding:6px 12px;font-size:.8rem}
+.picker-bulk .button:disabled{opacity:.45;cursor:default}
+.picker-count{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:.8rem;color:#7b8798}
+.picker-count strong{color:#172033;font-variant-numeric:tabular-nums}
+.compact-list .pick-name{flex:1}
+.compact-list .pick-club{font-size:.72rem;color:#9aa4b2}
+.compact-list .pick-g{font-size:.65rem;font-weight:800;color:#c2185b;background:#fde7ef;border-radius:999px;padding:1px 6px}

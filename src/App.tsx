@@ -3,6 +3,7 @@ import { Menu, Plus, Trash2, Download, Printer, Shuffle, ShieldCheck, FileSpread
 import * as XLSX from 'xlsx';
 import { Sidebar } from './components/Sidebar';
 import { EntryCard } from './components/EntryCard';
+import { EntryPicker } from './components/EntryPicker';
 import {
   TEAM_SYSTEMS, applySubstitution, autoSchedule, buildTeamTie, canMovePlayer, createGroupPlayoff, createGroups, createKnockout,
   advanceKnockout as advance, createFinalGroup, entryMap, finalOrder, groupRounds, movePlayer, normalizeMatch, resizeSets, scoreTeamTie, scoreText, setsText, setsToWin, setGroupBestOf, setRoundBestOf, standings, tieTables, uid, validateMatch,
@@ -141,7 +142,7 @@ export function TournamentEditor({ initial, onSave, banner, onDelete, slug }: { 
         </div>
       </main>
 
-      {card && (() => { const comp = state.competitions.find(c => c.id === card.compId); return comp ? <EntryCard competition={comp} entryId={card.entryId} name={card.name} label={label} avatar={state.players.find(p => p.id === card.entryId)?.photo} onClose={() => setCard(null)} /> : null; })()}
+      {card && <EntryCard state={state} playerId={card.entryId} name={card.name} label={label} avatar={state.players.find(p => p.id === card.entryId)?.photo} onClose={() => setCard(null)} />}
       {detail && <MatchModal state={state} detail={detail} label={label} clubOf={clubOf}
         onClose={closeDetail}
         onChange={(m, bestOf) => {
@@ -310,7 +311,12 @@ function Competitions({ state, add, update, remove, setNotice }: { state: Tourna
             <p className="field-hint">Postupujúci = 0 → v skupine sa hrá play‑off (1‑2 o 1. miesto, 3‑4 o 3.). Viac ako 0 → hrá sa vyraďovací pavúk.</p></>}
         </div>
         <h3>Účastníci ({c.entryIds.length})</h3>
-        <div className="check-list compact-list">{available.map(e => <label key={e.id}><input type="checkbox" checked={c.entryIds.includes(e.id)} onChange={ev => update(c.id, x => ({ ...x, entryIds: ev.target.checked ? [...x.entryIds, e.id] : x.entryIds.filter(i => i !== e.id) }))} />{e.name}</label>)}</div>
+        <EntryPicker
+          entries={available}
+          selected={c.entryIds}
+          players={state.players}
+          onChange={ids => update(c.id, x => ({ ...x, entryIds: ids }))}
+        />
         {c.type !== 'teams'
           ? <button className="button primary" onClick={() => { update(c.id, x => ({ ...x, groups: createGroups(x.entryIds.map(id => em.get(id)!).filter(Boolean), x.preferredSize, x.bestOf, x.qualifiersPerGroup), ko: { main: [], consolation: [] } })); setNotice('Skupiny vytvorené.'); }}><Shuffle size={17} />Vytvoriť skupiny a rozpis</button>
           : <button className="button primary" onClick={() => { const teams = state.teams.filter(x => c.entryIds.includes(x.id)); const ties: TeamTie[] = []; for (let i = 0; i < teams.length; i++) for (let j = i + 1; j < teams.length; j++) ties.push(buildTeamTie(c.id, teams[i], teams[j], c.teamSystemId || 'CORBILLON', c.bestOf)); update(c.id, x => ({ ...x, teamTies: ties })); setNotice('Družstvové stretnutia vytvorené.'); }}><Wand2 size={17} />Vytvoriť stretnutia (každý s každým)</button>}

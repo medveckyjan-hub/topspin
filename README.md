@@ -83,7 +83,7 @@ Postupne prebehne:
 | 2 | `npm run check:migrations` | pomenovanie a jedinečnosť migrácií, hlavičky, pasce `create or replace` a `search_path` |
 | 3 | `npm run typecheck` | typová kontrola aplikácie (prísny režim) |
 | 4 | `npm run typecheck:tests` | typová kontrola testov |
-| 5 | `npm test` | 152 automatických kontrol vo Viteste |
+| 5 | `npm test` | 184 automatických kontrol vo Viteste |
 | 6 | `npm run build` | produkčný build |
 
 To isté beží pri každom push a pull requeste cez GitHub Actions
@@ -109,7 +109,10 @@ a `stages.mjs`, boli zrušené.
 | `tableview.test.ts` | 6 | zápis od stola |
 | `e2e.test.ts` | 20 | celý turnaj od prihlášok po konečné poradie |
 | `parallel.test.ts` | 7 | súbežnosť súťaží a hranice rozpisu |
-| **spolu** | **152** | |
+| `playercard.test.ts` | 10 | karta hráča naprieč súťažami |
+| `labels.test.ts` | 7 | označovanie skupín |
+| `entrypicker.test.ts` | 15 | hromadný výber účastníkov |
+| **spolu** | **184** | |
 
 ### Základný E2E dataset
 

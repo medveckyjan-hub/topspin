@@ -346,7 +346,7 @@ export function PublicView() {
         a={side(A)} b={side(B)} m={mo.m} onClose={() => setMo(null)} />; })()}
     {regOpen && <RegistrationForm slug={slug} tournament={name} categories={(data.competitions ?? []).map(c => c.name)}
       onClose={() => setRegOpen(false)} onDone={() => { setRegOpen(false); setRegDone(true); loadExtras(); }} />}
-    {card && <EntryCard competition={card.comp} entryId={card.entryId} name={card.name} label={label} avatar={data.players.find(p => p.id === card.entryId)?.photo} onClose={() => setCard(null)} />}
+    {card && <EntryCard state={data} playerId={card.entryId} name={card.name} label={label} avatar={data.players.find(p => p.id === card.entryId)?.photo} onClose={() => setCard(null)} />}
   </Shell>;
 }
 

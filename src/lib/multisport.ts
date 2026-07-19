@@ -3,6 +3,8 @@ import type {
   SetScore, StandingRow, TeamEntry, TeamNomination, TeamRubber, TeamSystem, TeamSystemId,
   TeamTie, TournamentGroup, FinalRow, QualBracket, QualificationStage } from '../types';
 
+import { groupName } from './labels';
+
 export const uid = () => crypto.randomUUID();
 export const emptySets = (bestOf: number): SetScore[] => Array.from({ length: bestOf }, () => ({ a: null, b: null }));
 export const setsToWin = (bestOf: number) => Math.ceil(bestOf / 2);
@@ -214,7 +216,7 @@ export function createGroups(entries: GenericEntry[], pref: number, bestOf: 3 | 
     band++;
   }
 
-  return buckets.map((b, i) => ({ id: uid(), name: `Skupina ${String.fromCharCode(65 + i)}`, entryIds: b.map(x => x.id), matches: generateRoundRobin(b.map(x => x.id), bestOf), qualifiers: Math.max(0, Math.min(q, b.length)), bestOf }));
+  return buckets.map((b, i) => ({ id: uid(), name: groupName(i), entryIds: b.map(x => x.id), matches: generateRoundRobin(b.map(x => x.id), bestOf), qualifiers: Math.max(0, Math.min(q, b.length)), bestOf }));
 }
 
 /** Kontrola žrebu: skupiny, v ktorých sa stretli hráči z rovnakého klubu. */
