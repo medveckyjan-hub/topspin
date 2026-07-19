@@ -127,13 +127,20 @@ export function readyStages(plan: StagePlan, map: Map<string, GenericEntry>): st
 export function finalPlacement(plan: StagePlan, entryIds: string[], map: Map<string, GenericEntry>): string[] {
   // hĺbka fázy = koľko krokov od štartu; hlbšie = lepšie umiestnenie
   const depth = new Map<string, number>();
+  // Ochrana proti cyklu: fázy tvoria orientovaný acyklický graf, ale používateľ
+  // (alebo import) môže vytvoriť kruh A→B→A. Bez `visiting` by rekurzia spadla
+  // na pretečenie zásobníka a zhodila celú stránku.
+  const visiting = new Set<string>();
   const walk = (s: Stage): number => {
     if (depth.has(s.id)) return depth.get(s.id)!;
+    if (visiting.has(s.id)) { depth.set(s.id, 0); return 0; }
+    visiting.add(s.id);
     let d = 0;
     if (s.source.from === 'stage') {
       const prev = stageById(plan, s.source.stageId);
       d = prev ? walk(prev) + 1 : 0;
     }
+    visiting.delete(s.id);
     depth.set(s.id, d);
     return d;
   };
@@ -180,4 +187,29 @@ export function stageSummary(plan: StagePlan, stage: Stage, map: Map<string, Gen
     ? `${(stage.groups ?? []).length} skupín`
     : `pavúk ${((stage.rounds ?? []).filter(r => r.kind !== 'third')[0]?.matches.length ?? 0) * 2} miest`;
   return `${src} · ${size}${stageDone(stage) ? ' · dohraté' : ''}`;
+}
+
+/** Nájde cykly v pláne fáz — A→B→A. Vracia zoznam mien fáz v kruhu. */
+export function stageCycles(plan: StagePlan): string[][] {
+  const byId = new Map(plan.stages.map(s => [s.id, s]));
+  const out: string[][] = [];
+  const state = new Map<string, 'open' | 'done'>();
+  const path: string[] = [];
+  const walk = (id: string) => {
+    const st = byId.get(id);
+    if (!st) return;
+    if (state.get(id) === 'open') {
+      const from = path.indexOf(id);
+      if (from >= 0) out.push(path.slice(from).map(x => byId.get(x)?.name ?? x));
+      return;
+    }
+    if (state.get(id) === 'done') return;
+    state.set(id, 'open');
+    path.push(id);
+    if (st.source.from === 'stage') walk(st.source.stageId);
+    path.pop();
+    state.set(id, 'done');
+  };
+  plan.stages.forEach(s => walk(s.id));
+  return out;
 }

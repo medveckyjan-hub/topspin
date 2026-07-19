@@ -7,7 +7,7 @@ import {
   TEAM_SYSTEMS, applySubstitution, autoSchedule, buildTeamTie, canMovePlayer, createGroupPlayoff, createGroups, createKnockout,
   advanceKnockout as advance, createFinalGroup, entryMap, finalOrder, groupRounds, movePlayer, normalizeMatch, resizeSets, scoreTeamTie, scoreText, setsText, setsToWin, setGroupBestOf, setRoundBestOf, standings, tieTables, uid, validateMatch,
   createQualification, advanceQualification, qualificationWinners, qualificationDone, qualifiedForGroups,
-  clubConflicts, scheduleConflicts } from './lib/multisport';
+  clubConflicts, scheduleConflicts, scheduleSpan } from './lib/multisport';
 import { advanceStage, buildStage, finalPlacement, newStage, readyStages, stageDone, stageRanking, stageSummary } from './lib/stages';
 import type { Stage, StagePlan } from './types';
 import { cloudReady, listPlayers, searchPlayers, upsertPlayer, type DbPlayer } from './lib/supabase';
@@ -326,7 +326,7 @@ function Groups({ state, update, setNotice }: { state: TournamentState; update: 
     const em = entryMap(c, state.players, state.pairs, state.teams);
     const conflicts = clubConflicts(c.groups, em);
     return <section className="card form-card" key={c.id}><h2>{c.name}</h2>
-      {conflicts.length > 0 && <div className="club-warn">
+    {conflicts.length > 0 && <div className="club-warn">
         <b>Pozor — v skupine sa stretli hráči z rovnakého klubu:</b>
         <span>{conflicts.map(x => `${x.group}: ${x.club} (${x.count})`).join(' · ')}</span>
         <em>Nastáva len keď je hráčov klubu viac než skupín. Presunúť ich môžeš ťahaním nižšie.</em>
@@ -674,6 +674,8 @@ function Schedule({ state, setState, setNotice, label }: { state: TournamentStat
   const conflicts = useMemo(() => scheduleConflicts(state.competitions, physIndex, state.settings.matchMinutes),
     [state.competitions, physIndex, state.settings.matchMinutes]);
   const playerName = (id: string) => state.players.find(p => p.id === id)?.name ?? id;
+  const span = useMemo(() => scheduleSpan(state.competitions, state.settings.matchMinutes),
+    [state.competitions, state.settings.matchMinutes]);
 
   const run = (phase: SchedulePhase, what: string) => {
     setState(st => {
@@ -711,6 +713,16 @@ function Schedule({ state, setState, setNotice, label }: { state: TournamentStat
   ]).filter(x => x.m.scheduledTime).sort((a, b) => (a.m.scheduledTime || '').localeCompare(b.m.scheduledTime || '') || (a.m.table ?? 0) - (b.m.table ?? 0));
 
   return <div className="matches-stack">
+    {span.overflow && <div className="club-warn">
+      <b>Rozpis sa nezmestí do jedného hracieho dňa.</b>
+      <span>{span.matches} zápasov od {span.first} do {span.last} — to je {(span.minutes / 60).toFixed(1)} hodiny v kuse.</span>
+      <em>Pridaj stoly, skráť zápasy, rozdeľ turnaj na viac dní alebo uber súťaže. Časy nad 24:00 znamenajú nasledujúci deň.</em>
+    </div>}
+    {span.overflow && <div className="club-warn">
+      <b>Rozpis sa nezmestí do jedného hracieho dňa.</b>
+      <span>{span.matches} zápasov od {span.first} do {span.last} — to je {(span.minutes / 60).toFixed(1)} hodiny v kuse.</span>
+      <em>Pridaj stoly, skráť zápasy, rozdeľ turnaj na viac dní alebo uber súťaže. Čas nad 24:00 znamená nasledujúci deň.</em>
+    </div>}
     {conflicts.length > 0 && <div className="club-warn">
       <b>Kolízia v harmonograme — hráč má dva zápasy naraz:</b>
       <span>{conflicts.slice(0, 6).map(x => `${playerName(x.playerId)} o ${x.time} (${x.a} × ${x.b})`).join(' · ')}{conflicts.length > 6 ? ` a ďalších ${conflicts.length - 6}` : ''}</span>

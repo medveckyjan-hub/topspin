@@ -5,8 +5,8 @@ import {
 } from './multisport';
 import type { Competition, GenericEntry, Match, TeamEntry, TournamentGroup } from '../types';
 
-const gen = (ids: string[]) => new Map<string, GenericEntry>(ids.map((id, i) => [id, { id, name: id, club: '', rating: 100 - i, memberIds: [id] }]));
-const win = (id: string, a: string, b: string, aWins: boolean): Match => normalizeMatch({ id, round: 1, playerAId: a, playerBId: b, status: 'scheduled', winnerId: null, specialResult: null, sets: aWins ? [{ a: 11, b: 1 }, { a: 11, b: 1 }, { a: 11, b: 1 }] : [{ a: 1, b: 11 }, { a: 1, b: 11 }, { a: 1, b: 11 }] }, 5);
+const gen: any = (ids: string[]) => new Map<string, GenericEntry>(ids.map((id, i) => [id, { id, name: id, club: '', rating: 100 - i, memberIds: [id] }]));
+const win: any = (id: string, a: string, b: string, aWins: boolean): Match => normalizeMatch({ id, round: 1, playerAId: a, playerBId: b, status: 'scheduled', winnerId: null, specialResult: null, sets: aWins ? [{ a: 11, b: 1 }, { a: 11, b: 1 }, { a: 11, b: 1 }] : [{ a: 1, b: 11 }, { a: 1, b: 11 }, { a: 1, b: 11 }] }, 5);
 
 describe('multi-event core', () => {
   it('drží skupiny v rozsahu 3–12', () => { for (let n = 3; n < 100; n++) { const s = chooseGroupSizes(n, 5); expect(s.reduce((a, b) => a + b, 0)).toBe(n); expect(Math.min(...s)).toBeGreaterThanOrEqual(3); expect(Math.max(...s)).toBeLessThanOrEqual(12); } });
@@ -37,7 +37,7 @@ describe('multi-event core', () => {
     const groups: TournamentGroup[] = [
       { id: 'A', name: 'A', entryIds: ['q1', 'q3', 'q5'], qualifiers: 3, bestOf: 5, matches: [] },
       { id: 'B', name: 'B', entryIds: ['q2', 'q4', 'q6'], qualifiers: 3, bestOf: 5, matches: [] }];
-    const c = { bestOf: 5, thirdPlace: true, consolation: false, groups } as unknown as Competition;
+    const c: any = { bestOf: 5, thirdPlace: true, consolation: false, groups } as unknown as Competition;
     const ko = createKnockout(c, map);
     const r1 = ko.main[0].matches.map(m => [m.playerAId, m.playerBId]);
     expect(ko.main[0].matches).toHaveLength(4);
@@ -52,7 +52,7 @@ describe('multi-event core', () => {
     const groups: TournamentGroup[] = [
       { id: 'A', name: 'A', entryIds: ['w1', 'w2'], qualifiers: 1, bestOf: 5, matches: [] },
       { id: 'B', name: 'B', entryIds: ['w3', 'w4'], qualifiers: 1, bestOf: 5, matches: [] }];
-    const c = { bestOf: 5, thirdPlace: false, consolation: true, groups } as unknown as Competition;
+    const c: any = { bestOf: 5, thirdPlace: false, consolation: true, groups } as unknown as Competition;
     expect(createKnockout(c, map).consolation.length).toBeGreaterThanOrEqual(1);
   });
 

@@ -1,0 +1,459 @@
+{
+  "_popis": "Základný E2E dataset TOPSPIN — 32 hráčov z 8 klubov (4 z každého), 8 párov, 4 družstvá. Deterministický.",
+  "settings": {
+    "name": "Baseline turnaj — E2E",
+    "date": "2026-09-12",
+    "venue": "Športová hala Slovenský Grob",
+    "address": "Školská 15, Slovenský Grob",
+    "tables": 6,
+    "matchMinutes": 20,
+    "restMinutes": 5,
+    "startTime": "09:00"
+  },
+  "players": [
+    {
+      "id": "pl00",
+      "name": "Adam Novák",
+      "club": "STO Slovenský Grob",
+      "rating": 2000,
+      "gender": "M",
+      "birthYear": 2005
+    },
+    {
+      "id": "pl01",
+      "name": "Boris Kováč",
+      "club": "ŠKST Bratislava",
+      "rating": 1983,
+      "gender": "M",
+      "birthYear": 2006
+    },
+    {
+      "id": "pl02",
+      "name": "Cyril Horváth",
+      "club": "MSK Malacky",
+      "rating": 1966,
+      "gender": "M",
+      "birthYear": 2007
+    },
+    {
+      "id": "pl03",
+      "name": "Dávid Varga",
+      "club": "TTC Pezinok",
+      "rating": 1949,
+      "gender": "M",
+      "birthYear": 2008
+    },
+    {
+      "id": "pl04",
+      "name": "Erik Tóth",
+      "club": "STK Modra",
+      "rating": 1932,
+      "gender": "M",
+      "birthYear": 2009
+    },
+    {
+      "id": "pl05",
+      "name": "Filip Nagy",
+      "club": "ŠK Senec",
+      "rating": 1915,
+      "gender": "M",
+      "birthYear": 2010
+    },
+    {
+      "id": "pl06",
+      "name": "Gabriel Baláž",
+      "club": "TJ Rača",
+      "rating": 1898,
+      "gender": "M",
+      "birthYear": 2011
+    },
+    {
+      "id": "pl07",
+      "name": "Hugo Molnár",
+      "club": "KST Trnava",
+      "rating": 1881,
+      "gender": "M",
+      "birthYear": 2012
+    },
+    {
+      "id": "pl08",
+      "name": "Igor Lukáč",
+      "club": "STO Slovenský Grob",
+      "rating": 1864,
+      "gender": "M",
+      "birthYear": 2013
+    },
+    {
+      "id": "pl09",
+      "name": "Ján Šimko",
+      "club": "ŠKST Bratislava",
+      "rating": 1847,
+      "gender": "M",
+      "birthYear": 2014
+    },
+    {
+      "id": "pl10",
+      "name": "Karol Polák",
+      "club": "MSK Malacky",
+      "rating": 1830,
+      "gender": "M",
+      "birthYear": 2015
+    },
+    {
+      "id": "pl11",
+      "name": "Lukáš Král",
+      "club": "TTC Pezinok",
+      "rating": 1813,
+      "gender": "M",
+      "birthYear": 2016
+    },
+    {
+      "id": "pl12",
+      "name": "Marek Bača",
+      "club": "STK Modra",
+      "rating": 1796,
+      "gender": "M",
+      "birthYear": 2005
+    },
+    {
+      "id": "pl13",
+      "name": "Norbert Danko",
+      "club": "ŠK Senec",
+      "rating": 1779,
+      "gender": "M",
+      "birthYear": 2006
+    },
+    {
+      "id": "pl14",
+      "name": "Oliver Ferko",
+      "club": "TJ Rača",
+      "rating": 1762,
+      "gender": "M",
+      "birthYear": 2007
+    },
+    {
+      "id": "pl15",
+      "name": "Peter Gajdoš",
+      "club": "KST Trnava",
+      "rating": 1745,
+      "gender": "M",
+      "birthYear": 2008
+    },
+    {
+      "id": "pl16",
+      "name": "Radovan Hruška",
+      "club": "STO Slovenský Grob",
+      "rating": 1728,
+      "gender": "M",
+      "birthYear": 2009
+    },
+    {
+      "id": "pl17",
+      "name": "Samuel Ivanič",
+      "club": "ŠKST Bratislava",
+      "rating": 1711,
+      "gender": "M",
+      "birthYear": 2010
+    },
+    {
+      "id": "pl18",
+      "name": "Tomáš Jurko",
+      "club": "MSK Malacky",
+      "rating": 1694,
+      "gender": "M",
+      "birthYear": 2011
+    },
+    {
+      "id": "pl19",
+      "name": "Viktor Klimo",
+      "club": "TTC Pezinok",
+      "rating": 1677,
+      "gender": "M",
+      "birthYear": 2012
+    },
+    {
+      "id": "pl20",
+      "name": "Zdenko Lipták",
+      "club": "STK Modra",
+      "rating": 1660,
+      "gender": "M",
+      "birthYear": 2013
+    },
+    {
+      "id": "pl21",
+      "name": "Andrej Mihál",
+      "club": "ŠK Senec",
+      "rating": 1643,
+      "gender": "M",
+      "birthYear": 2014
+    },
+    {
+      "id": "pl22",
+      "name": "Branislav Nemec",
+      "club": "TJ Rača",
+      "rating": 1626,
+      "gender": "M",
+      "birthYear": 2015
+    },
+    {
+      "id": "pl23",
+      "name": "Cyprián Ondruš",
+      "club": "KST Trnava",
+      "rating": 1609,
+      "gender": "M",
+      "birthYear": 2016
+    },
+    {
+      "id": "pl24",
+      "name": "Dušan Pavlík",
+      "club": "STO Slovenský Grob",
+      "rating": 1592,
+      "gender": "M",
+      "birthYear": 2005
+    },
+    {
+      "id": "pl25",
+      "name": "Emil Rusnák",
+      "club": "ŠKST Bratislava",
+      "rating": 1575,
+      "gender": "M",
+      "birthYear": 2006
+    },
+    {
+      "id": "pl26",
+      "name": "František Sedlák",
+      "club": "MSK Malacky",
+      "rating": 1558,
+      "gender": "M",
+      "birthYear": 2007
+    },
+    {
+      "id": "pl27",
+      "name": "Gustáv Tkáč",
+      "club": "TTC Pezinok",
+      "rating": 1541,
+      "gender": "M",
+      "birthYear": 2008
+    },
+    {
+      "id": "pl28",
+      "name": "Henrich Uhrík",
+      "club": "STK Modra",
+      "rating": 1524,
+      "gender": "M",
+      "birthYear": 2009
+    },
+    {
+      "id": "pl29",
+      "name": "Ivan Vlk",
+      "club": "ŠK Senec",
+      "rating": 1507,
+      "gender": "M",
+      "birthYear": 2010
+    },
+    {
+      "id": "pl30",
+      "name": "Jozef Zajac",
+      "club": "TJ Rača",
+      "rating": 1490,
+      "gender": "M",
+      "birthYear": 2011
+    },
+    {
+      "id": "pl31",
+      "name": "Kamil Žiak",
+      "club": "KST Trnava",
+      "rating": 1473,
+      "gender": "M",
+      "birthYear": 2012
+    }
+  ],
+  "pairs": [
+    {
+      "id": "pa0",
+      "name": "Novák / Kováč",
+      "playerIds": [
+        "pl00",
+        "pl01"
+      ],
+      "club": ""
+    },
+    {
+      "id": "pa1",
+      "name": "Horváth / Varga",
+      "playerIds": [
+        "pl02",
+        "pl03"
+      ],
+      "club": ""
+    },
+    {
+      "id": "pa2",
+      "name": "Tóth / Nagy",
+      "playerIds": [
+        "pl04",
+        "pl05"
+      ],
+      "club": ""
+    },
+    {
+      "id": "pa3",
+      "name": "Baláž / Molnár",
+      "playerIds": [
+        "pl06",
+        "pl07"
+      ],
+      "club": ""
+    },
+    {
+      "id": "pa4",
+      "name": "Lukáč / Šimko",
+      "playerIds": [
+        "pl08",
+        "pl09"
+      ],
+      "club": ""
+    },
+    {
+      "id": "pa5",
+      "name": "Polák / Král",
+      "playerIds": [
+        "pl10",
+        "pl11"
+      ],
+      "club": ""
+    },
+    {
+      "id": "pa6",
+      "name": "Bača / Danko",
+      "playerIds": [
+        "pl12",
+        "pl13"
+      ],
+      "club": ""
+    },
+    {
+      "id": "pa7",
+      "name": "Ferko / Gajdoš",
+      "playerIds": [
+        "pl14",
+        "pl15"
+      ],
+      "club": ""
+    }
+  ],
+  "teams": [
+    {
+      "id": "te0",
+      "name": "STO Slovenský Grob",
+      "club": "STO Slovenský Grob",
+      "playerIds": [
+        "pl00",
+        "pl01",
+        "pl02"
+      ]
+    },
+    {
+      "id": "te1",
+      "name": "ŠKST Bratislava",
+      "club": "ŠKST Bratislava",
+      "playerIds": [
+        "pl03",
+        "pl04",
+        "pl05"
+      ]
+    },
+    {
+      "id": "te2",
+      "name": "MSK Malacky",
+      "club": "MSK Malacky",
+      "playerIds": [
+        "pl06",
+        "pl07",
+        "pl08"
+      ]
+    },
+    {
+      "id": "te3",
+      "name": "TTC Pezinok",
+      "club": "TTC Pezinok",
+      "playerIds": [
+        "pl09",
+        "pl10",
+        "pl11"
+      ]
+    }
+  ],
+  "plan": {
+    "dvojhra": {
+      "qualification": {
+        "directCount": 16,
+        "slots": 4,
+        "bestOf": 3
+      },
+      "stages": [
+        {
+          "kluc": "skupiny1",
+          "name": "1. kolo skupín",
+          "kind": "groups",
+          "source": "entries",
+          "preferredSize": 4,
+          "qualifiersPerGroup": 2,
+          "bestOf": 5
+        },
+        {
+          "kluc": "skupiny2",
+          "name": "2. kolo skupín",
+          "kind": "groups",
+          "source": "skupiny1:qualified",
+          "preferredSize": 4,
+          "qualifiersPerGroup": 2,
+          "bestOf": 5
+        },
+        {
+          "kluc": "pavuk",
+          "name": "Finálový pavúk",
+          "kind": "knockout",
+          "source": "skupiny2:qualified",
+          "bestOf": 7,
+          "thirdPlace": true
+        },
+        {
+          "kluc": "utecha1",
+          "name": "Útecha 1. kola",
+          "kind": "knockout",
+          "source": "skupiny1:eliminated",
+          "bestOf": 5,
+          "thirdPlace": true,
+          "consolation": true
+        },
+        {
+          "kluc": "utecha2",
+          "name": "Útecha 2. kola",
+          "kind": "knockout",
+          "source": "skupiny2:eliminated",
+          "bestOf": 5,
+          "thirdPlace": true,
+          "consolation": true
+        }
+      ]
+    },
+    "stvorhra": {
+      "preferredSize": 4,
+      "qualifiersPerGroup": 2,
+      "bestOf": 5,
+      "thirdPlace": true
+    },
+    "druzstva": {
+      "systemId": "TEAM3_5S",
+      "bestOf": 5
+    },
+    "dvojhra_veterani": {
+      "popis": "Hrá sa klasickými skupinami, takže sa plánuje spolu so štvorhrou. Hráči sú tí istí, čo tvoria páry — preto sa tu prejaví, ak by harmonogram prestal sledovať fyzických hráčov.",
+      "entryCount": 16,
+      "preferredSize": 4,
+      "qualifiersPerGroup": 2,
+      "bestOf": 5
+    }
+  }
+}

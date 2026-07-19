@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noImplicitAny": false,
+    "strict": false,
+    "types": [
+      "vitest/globals",
+      "vite/client"
+    ],
+    "strictNullChecks": false,
+    "strictFunctionTypes": false
+  },
+  "include": [
+    "src/**/*.test.ts",
+    "src/types.ts",
+    "src/lib"
+  ],
+  "exclude": []
+}
